@@ -1,0 +1,2 @@
+UI\FrameDef\Glue\BattleNetTemplates.fdf
+war3mapImported\CustomFrameFDF.fdf
