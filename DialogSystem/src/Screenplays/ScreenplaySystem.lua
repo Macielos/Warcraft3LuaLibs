@@ -30,7 +30,6 @@ ScreenplaySystem = {   -- main dialogue class.
 }
 
 ScreenplaySystem.item = {   -- sub class for dialogue strings and how they play.
-    -- required inputs:
     text = nil, -- the dialogue string to display.
     actor = nil, -- the actor that owns this speech item.
     anim = nil, -- play a string animation when the speech item is played.

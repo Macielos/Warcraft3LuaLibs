@@ -53,7 +53,8 @@ Getting Started:
 I suggest to familiarize with the system on a demo map which tells a story of a fellow footman on an epic quest to find 
 beer. See the screenplays within the map triggers or on Github, then try to modify them and experiment. It's best to do
 it in some IDE (I personally use IntelliJ Idea with LUA plugin) or text editor that highlights syntax, brackets, 
-does formatting etc. 
+does formatting etc. You can find a list of available fields and their descriptions in a file ScreenplaySystem.lua, 
+near the beginning. If there's demand, I can prepare some more detailed docs. 
 
 You can speed up working on screenplays by using a small tool I wrote (requires Java 18+, so far you need to build the 
 project yourself using Maven, I can provide a jar if there's any interest in the tool):
@@ -68,7 +69,7 @@ Known issues:
 - You can unlock a camera in cutscene by pressing e.g. F10. To fix it I periodically 'adjust' the camera.
 - Because of above, instead of standard camera functions/trigger actions you should use ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration) or ScreenplayUtils.interpolateCameraFromCurrent(cameraTo, duration). See elf screenplay in demo for examples. 
 - For some rare camera angles in cutscenes camera does not get locked at all, so you can freely move it.
-- During in-game dialogs a window may disrupt a game a little. I want to make it unclickable, but so far I didn't find an option for that. In the worst case I'll just add an option to display in-game dialogs like in vanilla, without a dialog window. 
+- During in-game dialogs you can click on a window which disrupts a game a little. I wanted to make it unclickable, but so far I didn't find an option for that. In the worst case I'll just add a config to display in-game dialogs like in vanilla, without a dialog window. 
 
 Credits: 
 @Planetary - my system began as a modification of this system:
