@@ -1,4 +1,4 @@
-ScreenplayUtils = {}
+ScreenplayUtils = {} -- utility class with functions you can use in your screenplays
 ScreenplayUtils.debug = false
 
 function ScreenplayUtils.speechIndicator(unit)

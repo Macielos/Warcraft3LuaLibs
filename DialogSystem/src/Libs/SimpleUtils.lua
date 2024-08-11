@@ -47,19 +47,22 @@ function SimpleUtils.debugFuncTimed(func, name)
     return result
 end
 
-function SimpleUtils.newClass(t)
+function SimpleUtils.newClass(t, constructor)
     local t = t
     t.__index = t
     t.lookupt = {}
     t.new = function()
         local o = {}
         setmetatable(o, t)
+        if not (constructor == nil) then
+            constructor(o)
+        end
         return o
     end
     t.destroy = function()
         t.lookupt[t] = nil
     end
-    if SimpleUtils.debug then
+    if utils.debug then
         print("made new class for " .. tostring(t))
     end
 end

@@ -6,7 +6,7 @@ ScreenplaySystem = {   -- main dialogue class, configuration options can be foun
     TEXT_COLOR_HEX = "|cffffffff", -- character speech text color.
     INACTIVE_CHOICE_COLOR_HEX = "|cff808080", -- greyish text color for choices other than the selected one
 
-    debug = true, -- print debug messages for certain functions.
+    debug = false, -- print debug messages for certain functions.
 
     --leftovers from original lib, could be moved to ScreenplayVariants, but so far I saw no need to customize them
     fade = true, -- should dialogue components have fading eye candy effects?
@@ -702,9 +702,12 @@ function ScreenplaySystem.chain:getNextIndexForIndex(index)
     end
 end
 
+function ScreenplaySystem.chain:isCurrentChoiceRewindable(index)
+    return not (self[index].onRewindGoTo == nil or self[index].onRewindGoTo == 0)
+end
 
 function ScreenplaySystem.chain:getNextIndexForRewind(index)
-    if self[index].choices ~= nil and not (self[index].onRewindGoTo == nil or self[index].onRewindGoTo == 0) then
+    if self[index].choices ~= nil and self:isCurrentChoiceRewindable(index)  then
         return self[index].onRewindGoTo
     end
     return self:getNextIndexForIndex(index)
@@ -716,23 +719,19 @@ function ScreenplaySystem.chain:rewind()
     if currentIndex == nil then
         return
     end
-    if self[currentIndex].choices ~= nil and (self[currentIndex].onRewindGoTo == nil or self[currentIndex].onRewindGoTo == 0) then
+    if self[currentIndex].choices ~= nil and not self:isCurrentChoiceRewindable(currentIndex) then
         return
     end
     local tableLength = SimpleUtils.tableLength(ScreenplaySystem.currentChain)
     local prevIndex
-    local hasChoices
-    local unrewindable
     repeat
         prevIndex = currentIndex
         currentIndex = self:getNextIndexForRewind(currentIndex)
-        hasChoices = self[currentIndex].choices ~= nil
-        unrewindable = self[currentIndex].onRewindGoTo == nil or self[currentIndex].onRewindGoTo == 0
         ScreenplaySystem.printDebug("Rewind - moving from " .. tostring(prevIndex) .. " to " .. tostring(currentIndex))
     until currentIndex <= 0
             or currentIndex > tableLength
             or currentIndex == ScreenplaySystem.currentIndex
-            or (hasChoices and unrewindable)
+            or (self[currentIndex].choices ~= nil and not self:isCurrentChoiceRewindable(currentIndex))
             or self[currentIndex].stopOnRewind == true
     if currentIndex == ScreenplaySystem.currentIndex then
         printWarn("Cycle detected on index " .. currentIndex .. ", this dialog will never end, can't rewind")
