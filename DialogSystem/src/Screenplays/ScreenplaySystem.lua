@@ -1,6 +1,5 @@
 ScreenplaySystem = {   -- main dialogue class.
 
-    -- start of config settings (caution when editing durations):
     debug = false, -- print debug messages for certain functions.
 
     currentVariantConfig = nil,
@@ -24,9 +23,7 @@ ScreenplaySystem = {   -- main dialogue class.
     cameraInterpolationTimer,
     delayTimer,
     fadeoutTimer,
-    skippableTimers = {},
     lastActorSpeaking,
-    -- end of config settings.
 }
 
 ScreenplaySystem.item = {   -- sub class for dialogue strings and how they play.
@@ -45,6 +42,9 @@ ScreenplaySystem.item = {   -- sub class for dialogue strings and how they play.
     delayNextItem = 0, --delay after displaying all message characters, before moving to next item
     fadeInDuration = 0, --duration of fade in from black before displaying this item
     fadeOutDuration = 0, -- duration of fade out to black after displaying this item, remember to add 'fadeInDuration' to the following item or fade in by script/trigger
+    skipTimers = false, --if true, upon skipping this message timed actions added via utils.skippable() will be cancelled. Set to true for messages that begin a new shot, with fade, new camera etc.
+    stopOnRewind = false, --if true, rewinding a cutscene (ESC) will stop at this message
+    onRewindGoTo = 0, --used to pick new message when skipping choices
 }
 
 ScreenplaySystem.itemAction = {
@@ -119,6 +119,7 @@ function ScreenplaySystem:initScene()
     self:clear()
     if self.currentVariantConfig.cinematicMode then
         CinematicModeBJ(true, GetPlayersAll())
+        ClearSelection()
     end
     if self.currentVariantConfig.cinematicInteractive then
         SetUserControlForceOn(GetPlayersAll())
@@ -127,8 +128,9 @@ function ScreenplaySystem:initScene()
         BlzHideOriginFrames(true)
         BlzFrameSetVisible(self.consoleBackdrop, false)
     end
-    if self.currentVariantConfig.lockControls then
+    if self.currentVariantConfig.disableSelection then
         BlzEnableSelections(false, false)
+        EnablePreSelect(true, false)
     end
     if self.currentVariantConfig.lockCamera then
         self:enableCamera(true, false)
@@ -159,7 +161,7 @@ end
 function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interruptExisting)
     utils.debugfunc( function()
         if udg_screenplayActive == true then
-            if interruptExisting == true then
+            if interruptExisting == true or variant.interruptExisting == true then
                 printDebug("interrupting existing scene...")
                 self:clear()
                 self:endScene(true)
@@ -201,6 +203,7 @@ end
 
 -- end the dialogue sequence.
 function ScreenplaySystem:endScene(sync)
+    SkippableTimers:skip()
     if ScreenplaySystem.currentVariantConfig.cinematicMode then
         self:sendDummyTransmission()
     end
@@ -212,8 +215,9 @@ function ScreenplaySystem:endScene(sync)
         BlzHideOriginFrames(false)
         BlzFrameSetVisible(self.consoleBackdrop, true)
     end
-    if self.currentVariantConfig.lockControls then
+    if self.currentVariantConfig.disableSelection then
         BlzEnableSelections(true, true)
+        EnablePreSelect(true, true)
     end
     if self.fade then
         self:fadeOutFrame(true)
@@ -412,13 +416,13 @@ function ScreenplaySystem:canSkipItem()
     return self.currentVariantConfig.skippable == true and ScreenplaySystem:currentItem().skippable == true and self.fadeoutTimer == nil
 end
 
-function ScreenplaySystem:onSkip()
+function ScreenplaySystem:onRewind()
     utils.debugfunc( function()
         if self.currentVariantConfig.skippable == true then
-            printDebug("onSkip, currentItemIndex: ", tostring(self.currentIndex))
-            self.currentChain:skipToNextChoicesOrEnd()
+            printDebug("onRewind, currentItemIndex: ", tostring(self.currentIndex))
+            self.currentChain:rewind()
         end
-    end, "onSkip")
+    end, "onRewind")
 end
 
 function ScreenplaySystem:onLoad()
@@ -586,17 +590,6 @@ end
 function ScreenplaySystem.chain:playNext()
     utils.debugfunc(function()
         printDebug("playNext: currentIndex: " .. tostring(ScreenplaySystem.currentIndex))
-        if ScreenplaySystem.messageUncoverTimer then
-            ReleaseTimer(ScreenplaySystem.messageUncoverTimer)
-        end
-        if ScreenplaySystem.autoplayTimer then
-            ReleaseTimer(ScreenplaySystem.autoplayTimer)
-        end
-        if ScreenplaySystem.delayTimer then
-            ReleaseTimer(ScreenplaySystem.delayTimer)
-        end
-        SkippableTimers:skip()
-
         local fadeOutDuration
         if ScreenplaySystem:currentItem() == nil then
             fadeOutDuration = 0
@@ -617,6 +610,15 @@ end
 function ScreenplaySystem.chain:moveAndPlayNextInternal()
     local nextIndex = self:getNextIndex();
     ScreenplaySystem:goToInternal(nextIndex)
+    if ScreenplaySystem.messageUncoverTimer then
+        ReleaseTimer(ScreenplaySystem.messageUncoverTimer)
+    end
+    if ScreenplaySystem.autoplayTimer then
+        ReleaseTimer(ScreenplaySystem.autoplayTimer)
+    end
+    if ScreenplaySystem.delayTimer then
+        ReleaseTimer(ScreenplaySystem.delayTimer)
+    end
     self:playNextInternal()
 end
 
@@ -629,6 +631,10 @@ function ScreenplaySystem.chain:playNextInternal()
         ScreenplaySystem:clear()
         ScreenplaySystem:endScene()
     else
+        local currentItem = self[ScreenplaySystem.currentIndex]
+        if currentItem == nil or currentItem.skipTimers == true then
+            SkippableTimers:skip()
+        end
         if not self[ScreenplaySystem.currentIndex] or not self[ScreenplaySystem.currentIndex].actor.unit or IsUnitDeadBJ(self[ScreenplaySystem.currentIndex].actor.unit) then
             -- if next item was set to nil or is empty, try to skip over:
             self:playNext()
@@ -694,6 +700,8 @@ function ScreenplaySystem.chain:getNextIndexForIndex(index)
             return self[index].thenGoTo
         elseif self[index].thenGoToFunc then
             return self[index].thenGoToFunc()
+        elseif self[index].choices ~= nil and self[index].onRewindGoTo ~= nil then
+            return self[index].onRewindGoTo
         else
             return index + 1
         end
@@ -703,13 +711,13 @@ function ScreenplaySystem.chain:getNextIndexForIndex(index)
 end
 
 
-function ScreenplaySystem.chain:skipToNextChoicesOrEnd()
+function ScreenplaySystem.chain:rewind()
     local currentIndex = ScreenplaySystem.currentIndex;
-    printDebug("Skip - current index: " .. tostring(currentIndex))
+    printDebug("Rewind - current index: " .. tostring(currentIndex))
     if currentIndex == nil then
         return
     end
-    if not (self[currentIndex].choices == nil) then
+    if self[currentIndex].choices ~= nil and self[currentIndex].onRewindGoTo == nil then
         return
     end
     local tableLength = utils.tableLength(ScreenplaySystem.currentChain)
@@ -718,14 +726,18 @@ function ScreenplaySystem.chain:skipToNextChoicesOrEnd()
         prevIndex = currentIndex
         currentIndex = self:getNextIndexForIndex(currentIndex)
         printDebug("Skip - moving from " .. tostring(prevIndex) .. " to " .. tostring(currentIndex))
-    until currentIndex <= 0 or currentIndex > tableLength or currentIndex == ScreenplaySystem.currentIndex or not (self[currentIndex].choices == nil)
+    until currentIndex <= 0
+            or currentIndex > tableLength
+            or currentIndex == ScreenplaySystem.currentIndex
+            or (self[currentIndex].choices ~= nil and self[currentIndex].onRewindGoTo == nil)
+            or self[currentIndex].stopOnRewind == true
     if currentIndex == ScreenplaySystem.currentIndex then
-        printWarn("Cycle detected on index " .. currentIndex .. ", this dialog will never end, can't skip")
+        printWarn("Cycle detected on index " .. currentIndex .. ", this dialog will never end, can't rewind")
         return
     end
 
     ScreenplaySystem:goToInternal(currentIndex)
-    self:playNextInternal()
+    self:moveAndPlayNextInternal()
 end
 
 function ScreenplaySystem.chain:buildFromObject(buildFrom)
@@ -778,11 +790,25 @@ function ScreenplaySystem.chain:buildFromObject(buildFrom)
         if not (item.skippable == nil) then
             newChain[itemIndex].skippable = item.skippable
         end
+        if not (item.interruptExisting == nil) then
+            newChain[itemIndex].interruptExisting = item.interruptExisting
+        else
+            newChain[itemIndex].interruptExisting = false
+        end
         if not (item.fadeOutDuration == nil) then
             newChain[itemIndex].fadeOutDuration = item.fadeOutDuration
         end
         if not (item.fadeInDuration == nil) then
             newChain[itemIndex].fadeInDuration = item.fadeInDuration
+        end
+        if not (item.skipTimers == nil) then
+            newChain[itemIndex].skipTimers = item.skipTimers
+        end
+        if not (item.stopOnRewind == nil) then
+            newChain[itemIndex].stopOnRewind = item.stopOnRewind
+        end
+        if not (item.onRewindGoTo == nil) then
+            newChain[itemIndex].onRewindGoTo = item.onRewindGoTo
         end
         if item.choices then
             newChain[itemIndex].choices = {}
@@ -796,7 +822,7 @@ function ScreenplaySystem.chain:buildFromObject(buildFrom)
                 else
                     choice.visible = true
                 end
-                if not choiceBuildFrom.visibleFunc == nil then
+                if not (choiceBuildFrom.visibleFunc == nil) then
                     choice.visibleFunc = choiceBuildFrom.visibleFunc
                 end
                 choice.chosen = false

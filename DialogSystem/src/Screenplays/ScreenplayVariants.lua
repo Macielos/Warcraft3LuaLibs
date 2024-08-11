@@ -20,13 +20,14 @@ ScreenplayVariants = {
         hideUI = false, -- should the default game ui be hidden when scenes run?
         pauseAll = false,
         lockCamera = false,
-        lockControls = false,
+        disableSelection = true,
         unitPan = false, -- should the camera pan to the speaking actor's unit?
         cameraSpeed = 0.0, -- how fast the camera pans when scenes start/end/shift.
         unitFlash = true, -- should transmission indicators flash on the speaking unit?
         autoMoveNext = false,
         speed = 0.04, -- cadence to show new string characters (you could increase for dramatic effect).
         skippable = true,
+        interruptExisting = true,
     },
     --[[
         A modification of above that doesn't require pressing right arrow to move to the next line.
@@ -41,7 +42,7 @@ ScreenplayVariants = {
         hideUI = false,
         pauseAll = false,
         lockCamera = false,
-        lockControls = false,
+        disableSelection = true,
         unitPan = false,
         cameraSpeed = 0.0,
         unitFlash = true,
@@ -50,6 +51,7 @@ ScreenplayVariants = {
         autoMoveNextDelay = 3,
         autoMoveNextDelayPerChar = 0.02,
         skippable = true,
+        interruptExisting = true,
     },
     --[[
         A modification of above that also pauses all units. Typically I use 'inCutsceneAutoplayPause' for mid-game
@@ -65,7 +67,7 @@ ScreenplayVariants = {
         hideUI = false,
         pauseAll = true,
         lockCamera = false,
-        lockControls = false,
+        disableSelection = true,
         unitPan = false,
         cameraSpeed = 0.0,
         unitFlash = true,
@@ -74,6 +76,7 @@ ScreenplayVariants = {
         autoMoveNextDelay = 3,
         autoMoveNextDelayPerChar = 0.02,
         skippable = true,
+        interruptExisting = true,
     },
     --[[
         A small dialog window that pauses the game and keeps the camera pointing at a currently speaking actor. Good for
@@ -90,14 +93,15 @@ ScreenplayVariants = {
         pauseAll = true,
         hideUI = false,
         lockCamera = true,
-        lockControls = true,
+        disableSelection = true,
         unitPan = true,
         cameraSpeed = 0.75,
         unitFlash = true,
         autoMoveNext = true,
         autoMoveNextDelay = 3,
         speed = 0.04,
-        skippable = true
+        skippable = true,
+        interruptExisting = false,
     },
     --[[
         A simple in-game dialog that's not supposed to pause or disrupt the gameplay. Not meant for long dialogs, choices,
@@ -115,13 +119,14 @@ ScreenplayVariants = {
         pauseAll = false,
         hideUI = false,
         lockCamera = false,
-        lockControls = false,
+        disableSelection = false,
         unitPan = false,
         cameraSpeed = 0.0,
         unitFlash = true,
         autoMoveNext = true,
         autoMoveNextDelay = 3,
         speed = 0.04,
-        skippable = false
+        skippable = false,
+        interruptExisting = false,
     }
 }
