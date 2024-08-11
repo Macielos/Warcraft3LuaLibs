@@ -1,16 +1,18 @@
-ScreenplaySystem = {   -- main dialogue class.
+ScreenplaySystem = {   -- main dialogue class, configuration options can be found in ScreenplayVariants.lua
     FDF_BACKDROP = "EscMenuBackdrop",
     FDF_TITLE = "CustomText", -- from imported .fdf
     FDF_TEXT_AREA = "CustomTextArea", -- ``
     TITLE_COLOR_HEX = "|cffffce22", -- character title text color.
     TEXT_COLOR_HEX = "|cffffffff", -- character speech text color.
-    INACTIVE_CHOICE_COLOR_HEX = "|cff808080", -- greyish text color for choices other than selected one
+    INACTIVE_CHOICE_COLOR_HEX = "|cff808080", -- greyish text color for choices other than the selected one
 
     debug = false, -- print debug messages for certain functions.
 
-    --could be moved to ScreenplayVariants, but so far I see no need to customize this
+    --leftovers from original lib, could be moved to ScreenplayVariants, but so far I saw no need to customize them
     fade = true, -- should dialogue components have fading eye candy effects?
     fadeDuration = 0.81, -- how fast to fade if fade is enabled.
+
+    --internal state of the config and the screenplay
     frameInitialized = false,
     currentVariantConfig = nil,
     onSceneEndTrigger = nil,
