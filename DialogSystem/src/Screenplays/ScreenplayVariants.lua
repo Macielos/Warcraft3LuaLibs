@@ -10,28 +10,6 @@ ScreenplayVariants = {
         units turning to each other etc., which you do by defining 'func', 'trigger' or 'actions' props of a dialog line.
         See elf screenplay in a demo map.
     ]]
-    inCutscene = {
-        anchorX = 0.565, -- x-offset for dialogue box's center framepoint.
-        anchorY = 0.08, -- y-offset ``.
-        width = 0.98, -- 1 -- x-width of dialogue frame.
-        height = 0.12, -- y-width ``.
-        cinematicMode = true,
-        cinematicInteractive = true,
-        hideUI = false, -- should the default game ui be hidden when scenes run?
-        pauseAll = false,
-        lockCamera = false,
-        disableSelection = true,
-        unitPan = false, -- should the camera pan to the speaking actor's unit?
-        cameraSpeed = 0.0, -- how fast the camera pans when scenes start/end/shift.
-        unitFlash = true, -- should transmission indicators flash on the speaking unit?
-        autoMoveNext = false,
-        speed = 0.04, -- cadence to show new string characters (you could increase for dramatic effect).
-        skippable = true,
-        interruptExisting = true,
-    },
-    --[[
-        A modification of above that doesn't require pressing right arrow to move to the next line.
-    ]]
     inCutsceneAutoplay = {
         anchorX = 0.565,
         anchorY = 0.08,
@@ -51,6 +29,7 @@ ScreenplayVariants = {
         autoMoveNextDelay = 3,
         autoMoveNextDelayPerChar = 0.02,
         skippable = true,
+        rewindable = true,
         interruptExisting = true,
     },
     --[[
@@ -76,6 +55,30 @@ ScreenplayVariants = {
         autoMoveNextDelay = 3,
         autoMoveNextDelayPerChar = 0.02,
         skippable = true,
+        rewindable = true,
+        interruptExisting = true,
+    },
+    --[[
+        A modification of above that requires pressing right arrow to move to the next line.
+    ]]
+    inCutsceneNoAutoplay = {
+        anchorX = 0.565, -- x-offset for dialogue box's center framepoint.
+        anchorY = 0.08, -- y-offset ``.
+        width = 0.98, -- 1 -- x-width of dialogue frame.
+        height = 0.12, -- y-width ``.
+        cinematicMode = true,
+        cinematicInteractive = true,
+        hideUI = false, -- should the default game ui be hidden when scenes run?
+        pauseAll = false,
+        lockCamera = false,
+        disableSelection = true,
+        unitPan = false, -- should the camera pan to the speaking actor's unit?
+        cameraSpeed = 0.0, -- how fast the camera pans when scenes start/end/shift.
+        unitFlash = true, -- should transmission indicators flash on the speaking unit?
+        autoMoveNext = false,
+        speed = 0.04, -- cadence to show new string characters (you could increase for dramatic effect).
+        skippable = true,
+        rewindable = true,
         interruptExisting = true,
     },
     --[[
@@ -101,6 +104,7 @@ ScreenplayVariants = {
         autoMoveNextDelay = 3,
         speed = 0.04,
         skippable = true,
+        rewindable = true,
         interruptExisting = false,
     },
     --[[
@@ -127,6 +131,7 @@ ScreenplayVariants = {
         autoMoveNextDelay = 3,
         speed = 0.04,
         skippable = false,
+        rewindable = false,
         interruptExisting = false,
     }
 }

@@ -13,37 +13,36 @@ FrameUtils = {
 }
 
 -- @bool = true to fade out (hide); false to fade in (show).
-function FrameUtils.fadeFrame(bool, fh, dur)
-    BlzFrameSetVisible(fh, true)
-    local bool = bool
-    local fh = fh
+function FrameUtils.fadeFrame(fade, frame, duration)
+    BlzFrameSetVisible(frame, true)
+    local bool = fade
     local alpha = 255
-    local int = math.floor(255 / math.floor(dur / 0.03))
+    local int = math.floor(255 / math.floor(duration / 0.03))
     -- show:
     if bool then
-        BlzFrameSetVisible(fh, true)
-        BlzFrameSetAlpha(fh, 255)
+        BlzFrameSetVisible(frame, true)
+        BlzFrameSetAlpha(frame, 255)
         SimpleUtils.timedRepeat(0.03, nil, function(timer)
-            if BlzFrameGetAlpha(fh) > 0 and BlzFrameGetAlpha(fh) > int then
+            if BlzFrameGetAlpha(frame) > 0 and BlzFrameGetAlpha(frame) > int then
                 alpha = alpha - int
-                BlzFrameSetAlpha(fh, alpha)
+                BlzFrameSetAlpha(frame, alpha)
             else
-                BlzFrameSetAlpha(fh, 0)
-                BlzFrameSetVisible(fh, false)
+                BlzFrameSetAlpha(frame, 0)
+                BlzFrameSetVisible(frame, false)
                 ReleaseTimer(timer)
             end
         end)
         -- hide:
     else
-        BlzFrameSetVisible(fh, true)
-        BlzFrameSetAlpha(fh, 0)
+        BlzFrameSetVisible(frame, true)
+        BlzFrameSetAlpha(frame, 0)
         SimpleUtils.timedRepeat(0.03, nil, function(timer)
-            if BlzFrameGetAlpha(fh) ~= 255 and BlzFrameGetAlpha(fh) < 255 - int then
+            if BlzFrameGetAlpha(frame) ~= 255 and BlzFrameGetAlpha(frame) < 255 - int then
                 alpha = alpha + int
-                BlzFrameSetAlpha(fh, alpha)
+                BlzFrameSetAlpha(frame, alpha)
             else
-                BlzFrameSetAlpha(fh, 255)
-                BlzFrameSetVisible(fh, true)
+                BlzFrameSetAlpha(frame, 255)
+                BlzFrameSetVisible(frame, true)
                 ReleaseTimer(timer)
             end
         end)

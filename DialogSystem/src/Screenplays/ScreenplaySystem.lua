@@ -6,7 +6,7 @@ ScreenplaySystem = {   -- main dialogue class, configuration options can be foun
     TEXT_COLOR_HEX = "|cffffffff", -- character speech text color.
     INACTIVE_CHOICE_COLOR_HEX = "|cff808080", -- greyish text color for choices other than the selected one
 
-    debug = false, -- print debug messages for certain functions.
+    debug = true, -- print debug messages for certain functions.
 
     --leftovers from original lib, could be moved to ScreenplayVariants, but so far I saw no need to customize them
     fade = true, -- should dialogue components have fading eye candy effects?
@@ -65,7 +65,7 @@ ScreenplaySystem.actor = {   -- sub class for storing actor settings.
 }
 ScreenplaySystem.chain = {}  -- sub class for chaining speech items in order.
 
-local function printDebug(msg)
+function ScreenplaySystem.printDebug(msg)
     if ScreenplaySystem.debug then
         print(msg)
     end
@@ -151,7 +151,7 @@ end
 function ScreenplaySystem:buildScreenplay(name)
     return SimpleUtils.debugFunc(function()
         local builder = ScreenplayFactory.screenplayBuilders[name]
-        printDebug("calling builder for " .. tostring(name))
+        ScreenplaySystem.printDebug("calling builder for " .. tostring(name))
         return builder()
     end, "ScreenplayFactory.buildScreenplay " .. tostring(name))
 end
@@ -160,16 +160,16 @@ function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interrup
     SimpleUtils.debugFunc( function()
         if udg_screenplayActive == true then
             if interruptExisting == true or variant.interruptExisting == true then
-                printDebug("interrupting existing scene...")
+                ScreenplaySystem.printDebug("interrupting existing scene...")
                 self:clear()
                 self:endScene(true)
             else
-                printDebug("existing scene found, aborting...")
+                ScreenplaySystem.printDebug("existing scene found, aborting...")
                 return
             end
         end
 
-        printDebug("Starting scene...")
+        ScreenplaySystem.printDebug("Starting scene...")
         ClearTextMessages()
 
         self.currentVariantConfig = ScreenplayVariants[variant]
@@ -190,7 +190,7 @@ function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interrup
         else
             BlzFrameSetVisible(self.frame.backdrop, true)
         end
-        printDebug("calling first playNext")
+        ScreenplaySystem.printDebug("calling first playNext")
         self.currentChain:playNext()
     end, "startScene")
 end
@@ -223,7 +223,7 @@ function ScreenplaySystem:endScene(sync)
         BlzFrameSetVisible(self.frame.backdrop, false)
     end
     if self.currentVariantConfig.pauseAll then
-        printDebug("unpausing all")
+        ScreenplaySystem.printDebug("unpausing all")
         PauseAllUnitsBJ(false)
     end
     if self.currentVariantConfig.lockCamera then
@@ -341,7 +341,7 @@ end
 
 function ScreenplaySystem:onPreviousChoice()
     SimpleUtils.debugFunc( function()
-        printDebug("onPreviousChoice: ", tostring(self.currentChoiceIndex))
+        ScreenplaySystem.printDebug("onPreviousChoice: ", tostring(self.currentChoiceIndex))
         if not self.currentChoiceIndex or not self.currentChoices then
             return
         end
@@ -357,7 +357,7 @@ end
 
 function ScreenplaySystem:onNextChoice()
     SimpleUtils.debugFunc( function()
-        printDebug("onNextChoice: ", tostring(self.currentChoiceIndex))
+        ScreenplaySystem.printDebug("onNextChoice: ", tostring(self.currentChoiceIndex))
         if not self.currentChoiceIndex or not self.currentChoices then
             return
         end
@@ -379,10 +379,10 @@ end
 
 function ScreenplaySystem:onSelectChoice()
     SimpleUtils.debugFunc( function()
-        printDebug("onSelectChoice: " .. tostring(self.currentChoiceIndex))
+        ScreenplaySystem.printDebug("onSelectChoice: " .. tostring(self.currentChoiceIndex))
         if self.currentChoices then
             if self:isValidChoice() then
-                printDebug("currentChoices:onChoice() - valid choice")
+                ScreenplaySystem.printDebug("currentChoices:onChoice() - valid choice")
                 self.currentChoices[self.currentChoiceIndex]:onChoice()
                 self.currentChoices[self.currentChoiceIndex].chosen = true
                 self.currentChoices = nil
@@ -390,10 +390,10 @@ function ScreenplaySystem:onSelectChoice()
                 self.currentChain:playNextInternal()
             end
         elseif (self:canSkipItem()) then
-            printDebug("will call clickNext()")
+            ScreenplaySystem.printDebug("will call clickNext()")
             self:clickNext()
         else
-            printDebug("Couldn't select choice")
+            ScreenplaySystem.printDebug("Couldn't select choice")
         end
     end, "onSelectChoice")
 end
@@ -412,8 +412,8 @@ end
 
 function ScreenplaySystem:onRewind()
     SimpleUtils.debugFunc( function()
-        if self.currentVariantConfig.skippable == true then
-            printDebug("onRewind, currentItemIndex: ", tostring(self.currentIndex))
+        if self.currentVariantConfig.rewindable == true then
+            ScreenplaySystem.printDebug("onRewind, currentItemIndex: ", tostring(self.currentIndex))
             self.currentChain:rewind()
         end
     end, "onRewind")
@@ -436,7 +436,7 @@ function ScreenplaySystem:goTo(index)
 end
 
 function ScreenplaySystem:goToInternal(index)
-    printDebug("index " .. ScreenplaySystem.currentIndex .. " -> " .. index .. ", table length " .. SimpleUtils.tableLength(ScreenplaySystem.currentChain))
+    ScreenplaySystem.printDebug("index " .. ScreenplaySystem.currentIndex .. " -> " .. index .. ", table length " .. SimpleUtils.tableLength(ScreenplaySystem.currentChain))
     self.currentIndex = index
 end
 
@@ -583,7 +583,7 @@ end
 -- after a speech item completes, see what needs to happen next (load next item or close, etc.)
 function ScreenplaySystem.chain:playNext()
     SimpleUtils.debugFunc(function()
-        printDebug("playNext: currentIndex: " .. tostring(ScreenplaySystem.currentIndex))
+        ScreenplaySystem.printDebug("playNext: currentIndex: " .. tostring(ScreenplaySystem.currentIndex))
         local fadeOutDuration
         if ScreenplaySystem:currentItem() == nil then
             fadeOutDuration = 0
@@ -604,6 +604,10 @@ end
 function ScreenplaySystem.chain:moveAndPlayNextInternal()
     local nextIndex = self:getNextIndex();
     ScreenplaySystem:goToInternal(nextIndex)
+    self:playNextInternal()
+end
+
+function ScreenplaySystem.chain:playNextInternal()
     if ScreenplaySystem.messageUncoverTimer then
         ReleaseTimer(ScreenplaySystem.messageUncoverTimer)
     end
@@ -613,10 +617,6 @@ function ScreenplaySystem.chain:moveAndPlayNextInternal()
     if ScreenplaySystem.delayTimer then
         ReleaseTimer(ScreenplaySystem.delayTimer)
     end
-    self:playNextInternal()
-end
-
-function ScreenplaySystem.chain:playNextInternal()
     if ScreenplaySystem.fadeoutTimer then
         ReleaseTimer(ScreenplaySystem.fadeoutTimer)
         ScreenplaySystem.fadeoutTimer = nil
@@ -637,7 +637,7 @@ function ScreenplaySystem.chain:playNextInternal()
                 self[ScreenplaySystem.currentIndex]:func()
                 self:playNext()
             else
-                printDebug("trying to play index item: " .. ScreenplaySystem.currentIndex .. " with actor: " .. self[ScreenplaySystem.currentIndex].actor.name)
+                ScreenplaySystem.printDebug("trying to play index item: " .. ScreenplaySystem.currentIndex .. " with actor: " .. self[ScreenplaySystem.currentIndex].actor.name)
 
                 ScreenplaySystem.currentChoiceIndex = 0
                 local currentItem = self[ScreenplaySystem.currentIndex]
@@ -671,10 +671,10 @@ function ScreenplaySystem.chain:playNextInternal()
                         ScreenplaySystem.delayTimer = nil
                         currentItem:play()
                     end)
-                    printDebug("delayed playing index item: " .. tostring(ScreenplaySystem.currentIndex))
+                    ScreenplaySystem.printDebug("delayed playing index item: " .. tostring(ScreenplaySystem.currentIndex))
                 else
                     currentItem:play()
-                    printDebug("played index item: " .. tostring(ScreenplaySystem.currentIndex))
+                    ScreenplaySystem.printDebug("played index item: " .. tostring(ScreenplaySystem.currentIndex))
                 end
 
             end
@@ -689,13 +689,11 @@ end
 function ScreenplaySystem.chain:getNextIndexForIndex(index)
     if self[index] then
         if self[index].thenEndScene == true then
-           return -1
+            return -1
         elseif self[index].thenGoTo then
             return self[index].thenGoTo
         elseif self[index].thenGoToFunc then
             return self[index].thenGoToFunc()
-        elseif self[index].choices ~= nil and self[index].onRewindGoTo ~= nil then
-            return self[index].onRewindGoTo
         else
             return index + 1
         end
@@ -705,25 +703,36 @@ function ScreenplaySystem.chain:getNextIndexForIndex(index)
 end
 
 
+function ScreenplaySystem.chain:getNextIndexForRewind(index)
+    if self[index].choices ~= nil and not (self[index].onRewindGoTo == nil or self[index].onRewindGoTo == 0) then
+        return self[index].onRewindGoTo
+    end
+    return self:getNextIndexForIndex(index)
+end
+
 function ScreenplaySystem.chain:rewind()
     local currentIndex = ScreenplaySystem.currentIndex;
-    printDebug("Rewind - current index: " .. tostring(currentIndex))
+    ScreenplaySystem.printDebug("Rewind - current index: " .. tostring(currentIndex))
     if currentIndex == nil then
         return
     end
-    if self[currentIndex].choices ~= nil and self[currentIndex].onRewindGoTo == nil then
+    if self[currentIndex].choices ~= nil and (self[currentIndex].onRewindGoTo == nil or self[currentIndex].onRewindGoTo == 0) then
         return
     end
     local tableLength = SimpleUtils.tableLength(ScreenplaySystem.currentChain)
     local prevIndex
+    local hasChoices
+    local unrewindable
     repeat
         prevIndex = currentIndex
-        currentIndex = self:getNextIndexForIndex(currentIndex)
-        printDebug("Skip - moving from " .. tostring(prevIndex) .. " to " .. tostring(currentIndex))
+        currentIndex = self:getNextIndexForRewind(currentIndex)
+        hasChoices = self[currentIndex].choices ~= nil
+        unrewindable = self[currentIndex].onRewindGoTo == nil or self[currentIndex].onRewindGoTo == 0
+        ScreenplaySystem.printDebug("Rewind - moving from " .. tostring(prevIndex) .. " to " .. tostring(currentIndex))
     until currentIndex <= 0
             or currentIndex > tableLength
             or currentIndex == ScreenplaySystem.currentIndex
-            or (self[currentIndex].choices ~= nil and self[currentIndex].onRewindGoTo == nil)
+            or (hasChoices and unrewindable)
             or self[currentIndex].stopOnRewind == true
     if currentIndex == ScreenplaySystem.currentIndex then
         printWarn("Cycle detected on index " .. currentIndex .. ", this dialog will never end, can't rewind")
@@ -731,7 +740,7 @@ function ScreenplaySystem.chain:rewind()
     end
 
     ScreenplaySystem:goToInternal(currentIndex)
-    self:moveAndPlayNextInternal()
+    self:playNextInternal()
 end
 
 function ScreenplaySystem.chain:buildFromObject(buildFrom)
@@ -739,7 +748,7 @@ function ScreenplaySystem.chain:buildFromObject(buildFrom)
     local newChain = ScreenplaySystem.chain:new()
 
     for itemIndex, item in pairs(buildFrom) do
-        printDebug("building pair " .. tostring(itemIndex) .. ": " .. tostring(item.text) .. ", " .. tostring(item.choices))
+        ScreenplaySystem.printDebug("building pair " .. tostring(itemIndex) .. ": " .. tostring(item.text) .. ", " .. tostring(item.choices))
         assert(item.text or item.choices, "error in item " .. itemIndex .. ": text or choices must not be empty")
         assert(item.actor, "error in item " .. itemIndex .. ": actor must not be empty")
         newChain[itemIndex] = ScreenplaySystem.item:new()
@@ -801,13 +810,13 @@ function ScreenplaySystem.chain:buildFromObject(buildFrom)
         if not (item.stopOnRewind == nil) then
             newChain[itemIndex].stopOnRewind = item.stopOnRewind
         end
-        if not (item.onRewindGoTo == nil) then
+        if item.onRewindGoTo ~= nil and item.onRewindGoTo > 0 then
             newChain[itemIndex].onRewindGoTo = item.onRewindGoTo
         end
         if item.choices then
             newChain[itemIndex].choices = {}
             for choiceIndex, choiceBuildFrom in pairs(item.choices) do
-                printDebug("building choice " .. choiceIndex .. ": " .. choiceBuildFrom.text .. ", visible: " .. tostring(choiceBuildFrom.visible))
+                ScreenplaySystem.printDebug("building choice " .. choiceIndex .. ": " .. choiceBuildFrom.text .. ", visible: " .. tostring(choiceBuildFrom.visible))
                 local choice = ScreenplaySystem.choice:new()
                 choice.text = choiceBuildFrom.text
                 choice.onChoice = choiceBuildFrom.onChoice

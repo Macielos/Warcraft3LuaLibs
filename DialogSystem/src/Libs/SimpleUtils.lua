@@ -176,7 +176,7 @@ function SimpleUtils.fadeIn(duration)
     CinematicFadeBJ(bj_CINEFADETYPE_FADEIN, duration, "ReplaceableTextures\\CameraMasks\\Black_mask.blp", 1, 1, 1, 0)
 end
 
-local function valueToString(v, prefix)
+function SimpleUtils.valueToString(v, prefix)
     if type(v) == "table" then
         return SimpleUtils.toString(v, prefix .. " ")
     else
@@ -187,7 +187,7 @@ end
 function SimpleUtils.toString(o, prefix)
     local s = "{\n"
     for key, value in pairs(o) do
-        local valueString = valueToString(value, prefix)
+        local valueString = SimpleUtils.valueToString(value, prefix)
         s = s .. prefix .. "\"" .. key .. "\": \"" .. valueString .. "\",\n"
     end
     s = s .. "\n}\n"
