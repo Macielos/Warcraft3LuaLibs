@@ -22,7 +22,7 @@ end
     Stores a screenplay builder function under a given name. The function will be called when starting a scene by name.
 ]]
 function ScreenplayFactory:saveBuilder(name, screenplayBuilderFunction)
-    utils.debugfunc(function()
+    SimpleUtils.debugFunc(function()
         if (ScreenplayFactory.screenplayBuilders[name]) then
             printWarn("Duplicate screenplay key " .. name .. ", previous one will be overriden")
         end

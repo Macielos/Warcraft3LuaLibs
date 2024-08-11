@@ -1,5 +1,5 @@
 ScreenplayFactory:saveBuilder('orc', function()
-    sounds = {}
+    local sounds = {}
     sounds.grunt01      = gg_snd_GruntWhat2
     sounds.footman01    = gg_snd_FootmanWarcry1
 

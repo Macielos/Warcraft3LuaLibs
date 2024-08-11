@@ -3,7 +3,7 @@ SkippableTimers = {
 }
 
 function SkippableTimers:start(dur, func)
-    local timer = utils.timed(dur, func)
+    local timer = SimpleUtils.timed(dur, func)
     table.insert(self.skippableTimers, timer)
     return timer
 end

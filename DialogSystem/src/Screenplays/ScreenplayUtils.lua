@@ -23,7 +23,7 @@ function ScreenplayUtils.interpolateCameraTillEndOfCurrentItem(cameraFrom, camer
 end
 
 function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
-    return utils.debugfunc(function()
+    return SimpleUtils.debugFunc(function()
         ScreenplayUtils.clearInterpolation()
         CameraSetupApply(cameraFrom, true)
         local cameraFromX = CameraSetupGetDestPositionX(cameraFrom)
@@ -39,7 +39,7 @@ function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
         local durationInt = math.floor(duration)
         local durationLeft = durationInt
         TimerStart(timer, 1.0, true, function()
-            utils.debugfunc(function()
+            SimpleUtils.debugFunc(function()
                 --print("durationLeft: " .. tostring(durationLeft) .. " / " .. tostring(durationInt))
                 durationLeft = durationLeft - 1
                 if durationLeft <= 0 then
@@ -94,7 +94,7 @@ function ScreenplayUtils.clearInterpolation()
 end
 
 function ScreenplayUtils.getCurrentItemDuration()
-    return utils.debugfunc(function()
+    return SimpleUtils.debugFunc(function()
         return ScreenplaySystem:currentItem():getDuration()
     end, "getCurrentItemDuration")
 end

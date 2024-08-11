@@ -3,7 +3,7 @@ onInit(function()
 end)
 
 function loadAndInitFrames()
-    utils.debugfunc(function()
+    SimpleUtils.debugFunc(function()
         if not BlzLoadTOCFile('war3mapImported\\CustomFrameTOC.toc') then
             print("error: .fdf file failed to load")
             print("tip: are you missing a curly brace in the fdf?")
@@ -22,6 +22,6 @@ end
 
 
 -- time elapsed init.
-utils.timed(0.0, function()
+SimpleUtils.timed(0.0, function()
     loadAndInitFrames()
 end)

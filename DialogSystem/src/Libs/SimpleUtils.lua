@@ -1,14 +1,8 @@
-utils = {}
-utils.debug = false
-utils.framePoints = { -- shorthand 'FRAMEPOINT' for terser code.
-    tl = FRAMEPOINT_TOPLEFT, t = FRAMEPOINT_TOP,
-    tr = FRAMEPOINT_TOPRIGHT, r = FRAMEPOINT_RIGHT,
-    br = FRAMEPOINT_BOTTOMRIGHT, b = FRAMEPOINT_BOTTOM,
-    bl = FRAMEPOINT_BOTTOMLEFT, l = FRAMEPOINT_LEFT,
-    c = FRAMEPOINT_CENTER,
-}
+SimpleUtils = {}
+SimpleUtils.debug = false
+SimpleUtils.debugTime = false
 
-function utils.debugfunc(func, name)
+function SimpleUtils.debugFunc(func, name)
     local name = name or ""
     local result
     local passed, data = pcall(function()
@@ -23,11 +17,11 @@ function utils.debugfunc(func, name)
     return result
 end
 
-function utils.printPassed(since, name)
-    if utils.debugTime then
-        local call = utils.timedCalls[name] or 0
+function SimpleUtils.printTime(since, name)
+    if SimpleUtils.debugTime then
+        local call = SimpleUtils.timedCalls[name] or 0
         call = call + 1
-        utils.timedCalls[name] = call
+        SimpleUtils.timedCalls[name] = call
         local duration = os.time() - since
         --if duration > 0 then
         print(name .. ": " .. tostring(call) .. ". call took " .. tostring(duration) .. "ms")
@@ -35,13 +29,13 @@ function utils.printPassed(since, name)
     end
 end
 
-function utils.debugfuncTimed(func, name)
+function SimpleUtils.debugFuncTimed(func, name)
     local start = os.time()
     local name = name or ""
     local result
     local passed, data = pcall(function()
         result = func()
-        utils.printPassed(start, name)
+        SimpleUtils.printTime(start, name)
         return "func " .. name .. " passed"
     end)
     if not passed then
@@ -49,11 +43,11 @@ function utils.debugfuncTimed(func, name)
     end
     passed = nil
     data = nil
-    utils.printPassed(start, name)
+    SimpleUtils.printTime(start, name)
     return result
 end
 
-function utils.newclass(t)
+function SimpleUtils.newClass(t)
     local t = t
     t.__index = t
     t.lookupt = {}
@@ -65,30 +59,30 @@ function utils.newclass(t)
     t.destroy = function()
         t.lookupt[t] = nil
     end
-    if utils.debug then
+    if SimpleUtils.debug then
         print("made new class for " .. tostring(t))
     end
 end
 
-function utils.timed(dur, func)
+function SimpleUtils.timed(dur, func)
     local tmr = CreateTimer()
-    utils.debugfunc(function()
+    SimpleUtils.debugFunc(function()
         TimerStart(tmr, dur, false, function()
             func()
             ReleaseTimer(tmr)
         end)
         return tmr
-    end, 'utilsTimed')
+    end, 'SimpleUtilsTimed')
     return tmr;
 end
 
-function utils.timedSkippable(dur, func)
+function SimpleUtils.timedSkippable(dur, func)
     SkippableTimers:start(dur, func)
 end
 
-function utils.timedRepeat(dur, count, func)
+function SimpleUtils.timedRepeat(dur, count, func)
     local tmr = CreateTimer()
-    utils.debugfunc(function()
+    SimpleUtils.debugFunc(function()
         local t, c = count, 0
         if t == nil then
             TimerStart(tmr, dur, true, function()
@@ -99,26 +93,18 @@ function utils.timedRepeat(dur, count, func)
                 func(tmr)
                 c = c + 1
                 if c >= t then
-                    ReleaseTimer(timer)
+                    ReleaseTimer(tmr)
                 end
             end)
         end
         return tmr
-    end, 'utilsTimedRepeat')
+    end, 'SimpleUtilsTimedRepeat')
     return tmr;
-end
-
-function utils.tableCollapse(t)
-    for index, value in pairs(t) do
-        if value == nil then
-            table.remove(t, index)
-        end
-    end
 end
 
 -- :: clones a table and any child tables (setting metatables)
 -- @t = table to copy
-function utils.deepCopy(t)
+function SimpleUtils.deepCopy(t)
     local t2 = {}
     if getmetatable(t) then
         setmetatable(t2, getmetatable(t))
@@ -140,7 +126,7 @@ function utils.deepCopy(t)
     return t2
 end
 
-function utils.destroyTable(t)
+function SimpleUtils.destroyTable(t)
     for i, v in pairs(t) do
         if type(v) == "table" then
             for i2, v2 in pairs(v) do
@@ -154,70 +140,12 @@ function utils.destroyTable(t)
     end
 end
 
--- @bool = true to fade out (hide); false to fade in (show).
-function utils.fadeFrame(bool, fh, dur)
-    BlzFrameSetVisible(fh, true)
-    local bool = bool
-    local fh = fh
-    local alpha = 255
-    local int = math.floor(255 / math.floor(dur / 0.03))
-    -- show:
-    if bool then
-        BlzFrameSetVisible(fh, true)
-        BlzFrameSetAlpha(fh, 255)
-        utils.timedRepeat(0.03, nil, function(timer)
-            if BlzFrameGetAlpha(fh) > 0 and BlzFrameGetAlpha(fh) > int then
-                alpha = alpha - int
-                BlzFrameSetAlpha(fh, alpha)
-            else
-                BlzFrameSetAlpha(fh, 0)
-                BlzFrameSetVisible(fh, false)
-                ReleaseTimer(timer)
-            end
-        end)
-        -- hide:
-    else
-        BlzFrameSetVisible(fh, true)
-        BlzFrameSetAlpha(fh, 0)
-        utils.timedRepeat(0.03, nil, function(timer)
-            if BlzFrameGetAlpha(fh) ~= 255 and BlzFrameGetAlpha(fh) < 255 - int then
-                alpha = alpha + int
-                BlzFrameSetAlpha(fh, alpha)
-            else
-                BlzFrameSetAlpha(fh, 255)
-                BlzFrameSetVisible(fh, true)
-                ReleaseTimer(timer)
-            end
-        end)
-    end
+function SimpleUtils.playSound(snd)
+    StopSound(snd, false, false)
+    StartSound(snd)
 end
 
-function utils.playSound(snd, p)
-    local p = p or GetTriggerPlayer()
-    if p == GetLocalPlayer() then
-        StopSound(snd, false, false)
-        StartSound(snd)
-    end
-end
-
-function utils.playSoundAll(snd)
-    utils.looplocalp(function()
-        StopSound(snd, false, false)
-        StartSound(snd)
-    end)
-end
-
--- @func = run this for all players, but local only.
-function utils.looplocalp(func)
-    ForForce(bj_FORCE_ALL_PLAYERS, function()
-        if GetEnumPlayer() == GetLocalPlayer() then
-            func(GetEnumPlayer())
-        end
-    end)
-end
-
-
-function utils.tableLength(t)
+function SimpleUtils.tableLength(t)
     if not t then
         return nil
     end
@@ -228,7 +156,7 @@ function utils.tableLength(t)
     return count
 end
 
-function utils.ifElse(condition, onTrue, onFalse)
+function SimpleUtils.ifElse(condition, onTrue, onFalse)
     if condition then
         return onTrue
     else
@@ -236,74 +164,27 @@ function utils.ifElse(condition, onTrue, onFalse)
     end
 end
 
-function ArrayRemove(t, fnRemove)
-    local j, n = 1, #t
-    for i=1,n do
-        if (fnRemove(t, i)) then --fnRemove(table, key) -- remove value
-            t[i] = nil
-        else --keep value
-            -- Move i's kept value to j's position, if it's not already there.
-            if (i ~= j) then
-                t[j] = t[i]
-                t[i] = nil
-            end
-            j = j + 1 -- Increment position of where we'll place the next kept value.
-        end
-    end
-    return t
-end
-
-function utils:printFrameStructure(frame)
-    print("STRUCTURE OF FRAME " .. BlzFrameGetName(frame) .. ": ")
-    local childrenCount = BlzFrameGetChildrenCount(frame)
-    print("  CHILDREN COUNT: " .. tostring(childrenCount))
-    for i = 0, childrenCount do
-        print("  CHILD " .. tostring(i) .. ": " .. BlzFrameGetName(BlzFrameGetChild(frame, i)))
-    end
-end
-
-function utils:getChildByName(parent, expectedChildName)
-    local childrenCount = BlzFrameGetChildrenCount(parent)
-    for i = 0, childrenCount do
-        local child = BlzFrameGetChild(parent, i)
-        local childName = BlzFrameGetName(child)
-        if childName == expectedChildName then
-            return child
-        end
-    end
-end
-
-function utils.printDupa()
+function SimpleUtils.printDupa()
     print("dupa")
 end
 
-function ReleaseTimer(whichTimer)
-    PauseTimer(whichTimer)
-    DestroyTimer(whichTimer)
-end
-
-function utils.fadeOut(duration)
+function SimpleUtils.fadeOut(duration)
     CinematicFadeBJ(bj_CINEFADETYPE_FADEOUT, duration, "ReplaceableTextures\\CameraMasks\\Black_mask.blp", 1, 1, 1, 0)
 end
 
-function utils.fadeIn(duration)
+function SimpleUtils.fadeIn(duration)
     CinematicFadeBJ(bj_CINEFADETYPE_FADEIN, duration, "ReplaceableTextures\\CameraMasks\\Black_mask.blp", 1, 1, 1, 0)
 end
 
-function printWarn(msg)
-    print("[WARN] " .. msg)
-end
-
-
 local function valueToString(v, prefix)
     if type(v) == "table" then
-        return utils.toString(v, prefix .. " ")
+        return SimpleUtils.toString(v, prefix .. " ")
     else
         return tostring(v)
     end
 end
 
-function utils.toString(o, prefix)
+function SimpleUtils.toString(o, prefix)
     local s = "{\n"
     for key, value in pairs(o) do
         local valueString = valueToString(value, prefix)
@@ -313,17 +194,33 @@ function utils.toString(o, prefix)
     return s
 end
 
-function utils.printToString(label, o)
-    print(label .. ": " .. utils.toString(o, " "))
+function SimpleUtils.printToString(label, o)
+    print(label .. ": " .. SimpleUtils.toString(o, " "))
 end
 
-function AngleBetweenCoordinatesDegrees(x, y, x2, y2)
-    return Atan2BJ(y2 - y, x2 - x)
-end
+function SimpleUtils.getRandomNumbers(min, max, count)
+    return SimpleUtils.debugFunc(function()
+        local rangeLength = max - min + 1
+        --print("rangeLength: " .. rangeLength)
+        if rangeLength < count then
+            print("Invalid args for SimpleUtils.getRandomNumbers: " .. tostring(min) .. " > " .. tostring(max))
+            return {}
+        end
+        local range = {}
+        for i = min, max do
+            table.insert(range, i)
+            --print("range insert " .. tostring(i))
+        end
 
-function DistanceBetweenCoordinates(x1, y1, x2, y2)
-    local dx = (x2 - x1)
-    local dy = (y2 - y1)
-
-    return SquareRoot(dx*dx + dy*dy)
+        local output = {}
+        for _ = 0, count - 1 do
+            local nextNumberIndex = math.random(1, rangeLength)
+            --print("nextNumberIndex " .. tostring(nextNumberIndex))
+            local nextNumber = table.remove(range, nextNumberIndex)
+            --print("removed nextNumber " .. tostring(nextNumber))
+            table.insert(output, nextNumber)
+            rangeLength = rangeLength - 1
+        end
+        return output
+    end, "SimpleUtils.getRandomNumbers(min=" .. tostring(min) .. ", max=" .. tostring(max) .. ", count=" .. tostring(count) .. ")")
 end

@@ -16,7 +16,7 @@ ScreenplaySystem = {   -- main dialogue class.
     titleColorHex = "|cffffce22", -- character title text color.
     textColorHex = "|cffffffff", -- character speech text color.
     inactiveChoiceColorHex = "|cff808080", -- greyish text color for choices other than selected one
-
+    
     messageUncoverTimer,
     trackingCameraTimer,
     autoplayTimer,
@@ -42,7 +42,7 @@ ScreenplaySystem.item = {   -- sub class for dialogue strings and how they play.
     delayNextItem = 0, --delay after displaying all message characters, before moving to next item
     fadeInDuration = 0, --duration of fade in from black before displaying this item
     fadeOutDuration = 0, -- duration of fade out to black after displaying this item, remember to add 'fadeInDuration' to the following item or fade in by script/trigger
-    skipTimers = false, --if true, upon skipping this message timed actions added via utils.skippable() will be cancelled. Set to true for messages that begin a new shot, with fade, new camera etc.
+    skipTimers = false, --if true, upon skipping this message timed actions added via SimpleUtils.skippable() will be cancelled. Set to true for messages that begin a new shot, with fade, new camera etc.
     stopOnRewind = false, --if true, rewinding a cutscene (ESC) will stop at this message
     onRewindGoTo = 0, --used to pick new message when skipping choices
 }
@@ -74,11 +74,11 @@ end
 
 -- initialize classes and class specifics:
 function ScreenplaySystem:init()
-    utils.newclass(ScreenplaySystem.actor)
-    utils.newclass(ScreenplaySystem.item)
-    utils.newclass(ScreenplaySystem.itemAction)
-    utils.newclass(ScreenplaySystem.chain)
-    utils.newclass(ScreenplaySystem.choice)
+    SimpleUtils.newClass(ScreenplaySystem.actor)
+    SimpleUtils.newClass(ScreenplaySystem.item)
+    SimpleUtils.newClass(ScreenplaySystem.itemAction)
+    SimpleUtils.newClass(ScreenplaySystem.chain)
+    SimpleUtils.newClass(ScreenplaySystem.choice)
     self.worldui = BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0)
     self.prevActor = nil   -- control for previous actor if frames animate on change.
     self.itemFullyDisplayed = false -- flag for controlling quick-complete vs. next speech item.
@@ -103,14 +103,14 @@ end
 
 function ScreenplaySystem:refreshFrames()
     BlzFrameSetSize(self.fr.backdrop, self.currentVariantConfig.width, self.currentVariantConfig.height)
-    BlzFrameSetAbsPoint(self.fr.backdrop, utils.framePoints.c, self.currentVariantConfig.anchorX, self.currentVariantConfig.anchorY)
+    BlzFrameSetAbsPoint(self.fr.backdrop, FrameUtils.FRAME_POINTS.c, self.currentVariantConfig.anchorX, self.currentVariantConfig.anchorY)
 
     BlzFrameSetSize(self.fr.title, self.currentVariantConfig.width, self.currentVariantConfig.height * 0.1)
-    BlzFrameSetPoint(self.fr.title, utils.framePoints.tl, self.fr.backdrop, utils.framePoints.tl, self.currentVariantConfig.height * 0.2, -self.currentVariantConfig.height * 0.17)
+    BlzFrameSetPoint(self.fr.title, FrameUtils.FRAME_POINTS.tl, self.fr.backdrop, FrameUtils.FRAME_POINTS.tl, self.currentVariantConfig.height * 0.2, -self.currentVariantConfig.height * 0.17)
     BlzFrameSetText(self.fr.title, "")
 
     BlzFrameSetSize(self.fr.text, self.currentVariantConfig.width, self.currentVariantConfig.height * 0.5)
-    BlzFrameSetPoint(self.fr.text, utils.framePoints.tl, self.fr.title, utils.framePoints.tl, 0, -self.currentVariantConfig.height * 0.18)
+    BlzFrameSetPoint(self.fr.text, FrameUtils.FRAME_POINTS.tl, self.fr.title, FrameUtils.FRAME_POINTS.tl, 0, -self.currentVariantConfig.height * 0.18)
     BlzFrameSetText(self.fr.text, "")
 end
 
@@ -144,14 +144,14 @@ function ScreenplaySystem:initScene()
 end
 
 function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting)
-    utils.debugfunc(function()
+    SimpleUtils.debugFunc(function()
         ScreenplaySystem:startScene(self:buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
     end, "startSceneByName " .. name .. ", " .. variant)
 end
 
 
 function ScreenplaySystem:buildScreenplay(name)
-    return utils.debugfunc(function()
+    return SimpleUtils.debugFunc(function()
         local builder = ScreenplayFactory.screenplayBuilders[name]
         printDebug("calling builder for " .. tostring(name))
         return builder()
@@ -159,7 +159,7 @@ function ScreenplaySystem:buildScreenplay(name)
 end
 
 function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interruptExisting)
-    utils.debugfunc( function()
+    SimpleUtils.debugFunc( function()
         if udg_screenplayActive == true then
             if interruptExisting == true or variant.interruptExisting == true then
                 printDebug("interrupting existing scene...")
@@ -178,7 +178,7 @@ function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interrup
         self.onSceneEndTrigger = onSceneEndTrigger
         assert(self.currentVariantConfig, "invalid frame variant: " .. variant)
         self.currentIndex = 0
-        self.currentChain = utils.deepCopy(chain)
+        self.currentChain = SimpleUtils.deepCopy(chain)
         self.paused = false
         if not self.initialized then
             self:initScene()
@@ -255,7 +255,7 @@ function ScreenplaySystem:endScene(sync)
     end
     -- clear cache:
     if not self.paused then
-        utils.destroyTable(self.currentChain)
+        SimpleUtils.destroyTable(self.currentChain)
     end
     if self.onSceneEndTrigger then
         ConditionalTriggerExecute(self.onSceneEndTrigger)
@@ -265,21 +265,17 @@ end
 
 -- @bool = true to enter dialogue camera; false to exit.
 function ScreenplaySystem:enableCamera(bool, sync)
-    utils.debugfunc(function()
-        local cameraSpeed = utils.ifElse(sync, 0, self.currentVariantConfig.cameraSpeed)
+    SimpleUtils.debugFunc(function()
+        local cameraSpeed = SimpleUtils.ifElse(sync, 0, self.currentVariantConfig.cameraSpeed)
         if bool then
             ClearTextMessagesBJ(bj_FORCE_ALL_PLAYERS)
             TimerStart(self.trackingCameraTimer, 0.03, true, function()
-                utils.looplocalp(function(p)
-                    CameraSetupApplyForPlayer(true, self.sceneCamera, p, cameraSpeed)
-                    PanCameraToTimedForPlayer(p, self.cameraTargetX, self.cameraTargetY, cameraSpeed)
-                end)
+                CameraSetupApplyForPlayer(true, self.sceneCamera, GetLocalPlayer(), cameraSpeed)
+                PanCameraToTimedForPlayer(GetLocalPlayer(), self.cameraTargetX, self.cameraTargetY, cameraSpeed)
             end)
         else
             PauseTimer(self.trackingCameraTimer)
-            utils.looplocalp(function(p)
-                ResetToGameCameraForPlayer(p, cameraSpeed)
-            end)
+            ResetToGameCameraForPlayer(GetLocalPlayer(), cameraSpeed)
         end
     end, "enableCamera")
 end
@@ -325,7 +321,7 @@ end
 
 -- @bool = true to animate out (hide), false to animate in (show).
 function ScreenplaySystem:fadeOutFrame(bool)
-    utils.fadeFrame(bool, self.fr.backdrop, self.fadeDuration)
+    FrameUtils.fadeFrame(bool, self.fr.backdrop, self.fadeDuration)
 end
 
 
@@ -346,7 +342,7 @@ end
 
 
 function ScreenplaySystem:onPreviousChoice()
-    utils.debugfunc( function()
+    SimpleUtils.debugFunc( function()
         printDebug("onPreviousChoice: ", tostring(self.currentChoiceIndex))
         if not self.currentChoiceIndex or not self.currentChoices then
             return
@@ -362,12 +358,12 @@ function ScreenplaySystem:onPreviousChoice()
 end
 
 function ScreenplaySystem:onNextChoice()
-    utils.debugfunc( function()
+    SimpleUtils.debugFunc( function()
         printDebug("onNextChoice: ", tostring(self.currentChoiceIndex))
         if not self.currentChoiceIndex or not self.currentChoices then
             return
         end
-        local tableLength = utils.tableLength(self.currentChoices)
+        local tableLength = SimpleUtils.tableLength(self.currentChoices)
         if self.currentChoiceIndex < tableLength
         then
             repeat
@@ -384,7 +380,7 @@ function ScreenplaySystem:playCurrentItem()
 end
 
 function ScreenplaySystem:onSelectChoice()
-    utils.debugfunc( function()
+    SimpleUtils.debugFunc( function()
         printDebug("onSelectChoice: " .. tostring(self.currentChoiceIndex))
         if self.currentChoices then
             if self:isValidChoice() then
@@ -417,7 +413,7 @@ function ScreenplaySystem:canSkipItem()
 end
 
 function ScreenplaySystem:onRewind()
-    utils.debugfunc( function()
+    SimpleUtils.debugFunc( function()
         if self.currentVariantConfig.skippable == true then
             printDebug("onRewind, currentItemIndex: ", tostring(self.currentIndex))
             self.currentChain:rewind()
@@ -426,7 +422,7 @@ function ScreenplaySystem:onRewind()
 end
 
 function ScreenplaySystem:onLoad()
-    utils.debugfunc( function()
+    SimpleUtils.debugFunc( function()
         loadAndInitFrames()
         self:refreshFrames()
         self:playCurrentItem()
@@ -442,13 +438,13 @@ function ScreenplaySystem:goTo(index)
 end
 
 function ScreenplaySystem:goToInternal(index)
-    printDebug("index " .. ScreenplaySystem.currentIndex .. " -> " .. index .. ", table length " .. utils.tableLength(ScreenplaySystem.currentChain))
+    printDebug("index " .. ScreenplaySystem.currentIndex .. " -> " .. index .. ", table length " .. SimpleUtils.tableLength(ScreenplaySystem.currentChain))
     self.currentIndex = index
 end
 
 function ScreenplaySystem:sendTransmission(actor, text)
     local count = string.len(text)
-    local msgLength = self.currentVariantConfig.autoMoveNextDelay + count * self.currentVariantConfig.speed * 2 --FIXME attempt to compensate diff between expected and real time of utils.timedRepeat()
+    local msgLength = self.currentVariantConfig.autoMoveNextDelay + count * self.currentVariantConfig.speed * 2 --FIXME attempt to compensate diff between expected and real time of SimpleUtils.timedRepeat()
     self.lastActorSpeaking = actor
     DoTransmissionBasicsXYBJ(GetUnitTypeId(actor), GetPlayerColor(GetOwningPlayer(actor)), GetUnitX(actor), GetUnitY(actor), nil, "", "", msgLength)
 end
@@ -496,14 +492,14 @@ function ScreenplaySystem.item:play()
         QueueUnitAnimation(self.actor.unit, "stand")
     end
     if not (self.sound == nil) then
-        utils.playSoundAll(self.sound)
+        SimpleUtils.playSound(self.sound)
     end
 
     BlzFrameSetVisible(ScreenplaySystem.fr.title, true)
     BlzFrameSetVisible(ScreenplaySystem.fr.text, true)
     if ScreenplaySystem.fade and ScreenplaySystem.prevActor ~= self.actor then
-        utils.fadeFrame(false, ScreenplaySystem.fr.title, ScreenplaySystem.fadeDuration)
-        utils.fadeFrame(false, ScreenplaySystem.fr.text, ScreenplaySystem.fadeDuration)
+        FrameUtils.fadeFrame(false, ScreenplaySystem.fr.title, ScreenplaySystem.fadeDuration)
+        FrameUtils.fadeFrame(false, ScreenplaySystem.fr.text, ScreenplaySystem.fadeDuration)
     end
 
     if ScreenplaySystem.currentVariantConfig.unitPan then
@@ -534,7 +530,7 @@ function ScreenplaySystem.item:playText()
     DisplayTimedTextToPlayer(GetLocalPlayer(), 0.0, 0.0, 0.1, ScreenplaySystem.titleColorHex .. self.actor.name .. "|r: " .. self.text)
     ClearTextMessages()
 
-    ScreenplaySystem.messageUncoverTimer = utils.timedRepeat(ScreenplaySystem.currentVariantConfig.speed, count, function(timer)
+    ScreenplaySystem.messageUncoverTimer = SimpleUtils.timedRepeat(ScreenplaySystem.currentVariantConfig.speed, count, function(timer)
         if pos < count and not ScreenplaySystem.itemFullyDisplayed then
             ahead = string.sub(self.text, pos, pos + 1)
             -- scan for formatting patterns:
@@ -552,7 +548,7 @@ function ScreenplaySystem.item:playText()
             BlzFrameSetText(ScreenplaySystem.fr.text, ScreenplaySystem.textColorHex .. self.text)
             ReleaseTimer(timer)
             if ScreenplaySystem.currentVariantConfig.autoMoveNext == true then
-                ScreenplaySystem.autoplayTimer = utils.timed(delay, function()
+                ScreenplaySystem.autoplayTimer = SimpleUtils.timed(delay, function()
                     ScreenplaySystem.currentChain:playNext()
                 end)
             end
@@ -566,7 +562,7 @@ function ScreenplaySystem.item:playChoices()
     local displayedIndex = 1
     for index, choice in ipairs(ScreenplaySystem.currentChoices) do
         if choice:isVisible() then
-            local color = utils.ifElse(index == ScreenplaySystem.currentChoiceIndex, ScreenplaySystem.textColorHex, ScreenplaySystem.inactiveChoiceColorHex)
+            local color = SimpleUtils.ifElse(index == ScreenplaySystem.currentChoiceIndex, ScreenplaySystem.textColorHex, ScreenplaySystem.inactiveChoiceColorHex)
             text = text .. color .. ((displayedIndex) .. ". " .. choice.text .. "|n")
             displayedIndex = displayedIndex + 1
         end
@@ -588,7 +584,7 @@ end
 
 -- after a speech item completes, see what needs to happen next (load next item or close, etc.)
 function ScreenplaySystem.chain:playNext()
-    utils.debugfunc(function()
+    SimpleUtils.debugFunc(function()
         printDebug("playNext: currentIndex: " .. tostring(ScreenplaySystem.currentIndex))
         local fadeOutDuration
         if ScreenplaySystem:currentItem() == nil then
@@ -597,8 +593,8 @@ function ScreenplaySystem.chain:playNext()
             fadeOutDuration = ScreenplaySystem:currentItem().fadeOutDuration
         end
         if fadeOutDuration > 0 then
-            utils.fadeOut(fadeOutDuration)
-            ScreenplaySystem.fadeoutTimer = utils.timed(fadeOutDuration * 1.2, function()
+            SimpleUtils.fadeOut(fadeOutDuration)
+            ScreenplaySystem.fadeoutTimer = SimpleUtils.timed(fadeOutDuration * 1.2, function()
                 self:moveAndPlayNextInternal()
             end)
         else
@@ -668,12 +664,12 @@ function ScreenplaySystem.chain:playNextInternal()
 
                 if initialDelay > 0 then
                     if currentItem.fadeInDuration > 0 then
-                        utils.fadeIn(currentItem.fadeInDuration)
+                        SimpleUtils.fadeIn(currentItem.fadeInDuration)
                     end
 
                     BlzFrameSetVisible(ScreenplaySystem.fr.backdrop, false)
                     ScreenplaySystem:sendDummyTransmission()
-                    ScreenplaySystem.delayTimer = utils.timed(initialDelay, function()
+                    ScreenplaySystem.delayTimer = SimpleUtils.timed(initialDelay, function()
                         ScreenplaySystem.delayTimer = nil
                         currentItem:play()
                     end)
@@ -720,7 +716,7 @@ function ScreenplaySystem.chain:rewind()
     if self[currentIndex].choices ~= nil and self[currentIndex].onRewindGoTo == nil then
         return
     end
-    local tableLength = utils.tableLength(ScreenplaySystem.currentChain)
+    local tableLength = SimpleUtils.tableLength(ScreenplaySystem.currentChain)
     local prevIndex
     repeat
         prevIndex = currentIndex
@@ -860,7 +856,7 @@ function ScreenplaySystem.chain:remove(item)
 end
 
 function ScreenplaySystem.chain:isValidIndex(index)
-    return index > 0 and index <= utils.tableLength(self)
+    return index > 0 and index <= SimpleUtils.tableLength(self)
 end
 
 function ScreenplaySystem:isActive()
