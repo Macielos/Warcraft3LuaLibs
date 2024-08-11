@@ -1,22 +1,19 @@
 ScreenplaySystem = {   -- main dialogue class.
+    FDF_BACKDROP = "EscMenuBackdrop",
+    FDF_TITLE = "CustomText", -- from imported .fdf
+    FDF_TEXT_AREA = "CustomTextArea", -- ``
+    TITLE_COLOR_HEX = "|cffffce22", -- character title text color.
+    TEXT_COLOR_HEX = "|cffffffff", -- character speech text color.
+    INACTIVE_CHOICE_COLOR_HEX = "|cff808080", -- greyish text color for choices other than selected one
 
     debug = false, -- print debug messages for certain functions.
 
-    currentVariantConfig = nil,
-    onSceneEndTrigger = nil,
-
-    frameInitialized = false,
-
+    --could be moved to ScreenplayVariants, but so far I see no need to customize this
     fade = true, -- should dialogue components have fading eye candy effects?
     fadeDuration = 0.81, -- how fast to fade if fade is enabled.
-
-    fdfBackdrop = "EscMenuBackdrop",
-    fdfTitle = "CustomText", -- from imported .fdf
-    fdfTextArea = "CustomTextArea", -- ``
-    titleColorHex = "|cffffce22", -- character title text color.
-    textColorHex = "|cffffffff", -- character speech text color.
-    inactiveChoiceColorHex = "|cff808080", -- greyish text color for choices other than selected one
-    
+    frameInitialized = false,
+    currentVariantConfig = nil,
+    onSceneEndTrigger = nil,
     messageUncoverTimer,
     trackingCameraTimer,
     autoplayTimer,
@@ -79,7 +76,6 @@ function ScreenplaySystem:init()
     SimpleUtils.newClass(ScreenplaySystem.itemAction)
     SimpleUtils.newClass(ScreenplaySystem.chain)
     SimpleUtils.newClass(ScreenplaySystem.choice)
-    self.worldui = BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0)
     self.prevActor = nil   -- control for previous actor if frames animate on change.
     self.itemFullyDisplayed = false -- flag for controlling quick-complete vs. next speech item.
     self.currentIndex = 0     -- the item currently being played from an item queue.
@@ -92,26 +88,26 @@ function ScreenplaySystem:init()
 end
 
 function ScreenplaySystem:initFrames()
-    self.fr = {}
-    self.fr.backdrop = BlzCreateFrame(self.fdfBackdrop, self.gameui, 0, 0)
-    self.fr.title = BlzCreateFrame(self.fdfTitle, self.fr.backdrop, 0, 0)
-    self.fr.text = BlzCreateFrame(self.fdfTextArea, self.fr.backdrop, 0, 0)
+    self.frame = {}
+    self.frame.backdrop = BlzCreateFrame(self.FDF_BACKDROP, self.gameui, 0, 0)
+    self.frame.title = BlzCreateFrame(self.FDF_TITLE, self.frame.backdrop, 0, 0)
+    self.frame.text = BlzCreateFrame(self.FDF_TEXT_AREA, self.frame.backdrop, 0, 0)
 
     self:show(false, true)
     self.frameInitialized = true
 end
 
 function ScreenplaySystem:refreshFrames()
-    BlzFrameSetSize(self.fr.backdrop, self.currentVariantConfig.width, self.currentVariantConfig.height)
-    BlzFrameSetAbsPoint(self.fr.backdrop, FrameUtils.FRAME_POINTS.c, self.currentVariantConfig.anchorX, self.currentVariantConfig.anchorY)
+    BlzFrameSetSize(self.frame.backdrop, self.currentVariantConfig.width, self.currentVariantConfig.height)
+    BlzFrameSetAbsPoint(self.frame.backdrop, FrameUtils.FRAME_POINTS.c, self.currentVariantConfig.anchorX, self.currentVariantConfig.anchorY)
 
-    BlzFrameSetSize(self.fr.title, self.currentVariantConfig.width, self.currentVariantConfig.height * 0.1)
-    BlzFrameSetPoint(self.fr.title, FrameUtils.FRAME_POINTS.tl, self.fr.backdrop, FrameUtils.FRAME_POINTS.tl, self.currentVariantConfig.height * 0.2, -self.currentVariantConfig.height * 0.17)
-    BlzFrameSetText(self.fr.title, "")
+    BlzFrameSetSize(self.frame.title, self.currentVariantConfig.width, self.currentVariantConfig.height * 0.1)
+    BlzFrameSetPoint(self.frame.title, FrameUtils.FRAME_POINTS.tl, self.frame.backdrop, FrameUtils.FRAME_POINTS.tl, self.currentVariantConfig.height * 0.2, -self.currentVariantConfig.height * 0.17)
+    BlzFrameSetText(self.frame.title, "")
 
-    BlzFrameSetSize(self.fr.text, self.currentVariantConfig.width, self.currentVariantConfig.height * 0.5)
-    BlzFrameSetPoint(self.fr.text, FrameUtils.FRAME_POINTS.tl, self.fr.title, FrameUtils.FRAME_POINTS.tl, 0, -self.currentVariantConfig.height * 0.18)
-    BlzFrameSetText(self.fr.text, "")
+    BlzFrameSetSize(self.frame.text, self.currentVariantConfig.width, self.currentVariantConfig.height * 0.5)
+    BlzFrameSetPoint(self.frame.text, FrameUtils.FRAME_POINTS.tl, self.frame.title, FrameUtils.FRAME_POINTS.tl, 0, -self.currentVariantConfig.height * 0.18)
+    BlzFrameSetText(self.frame.text, "")
 end
 
 -- initialize the scene interface (e.g. typically if you are running a cinematic component first).
@@ -190,7 +186,7 @@ function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interrup
         if self.fade then
             self:fadeOutFrame(false)
         else
-            BlzFrameSetVisible(self.fr.backdrop, true)
+            BlzFrameSetVisible(self.frame.backdrop, true)
         end
         printDebug("calling first playNext")
         self.currentChain:playNext()
@@ -222,7 +218,7 @@ function ScreenplaySystem:endScene(sync)
     if self.fade then
         self:fadeOutFrame(true)
     else
-        BlzFrameSetVisible(self.fr.backdrop, false)
+        BlzFrameSetVisible(self.frame.backdrop, false)
     end
     if self.currentVariantConfig.pauseAll then
         printDebug("unpausing all")
@@ -300,19 +296,19 @@ end
 
 -- @bool = true to show, false to hide.
 -- @skipeffectsbool = [optional] set to true skip fade animation.
-function ScreenplaySystem:show(bool, skipeffectsbool)
-    if bool then
-        if self.fade and not skipeffectsbool then
-            self:fadeOutFrame(bool)
+function ScreenplaySystem:show(show, skipEffects)
+    if show then
+        if self.fade and not skipEffects then
+            self:fadeOutFrame(show)
         else
-            for _, fh in pairs(self.fr) do
-                if fh ~= self.fr.skipbtn then
+            for _, fh in pairs(self.frame) do
+                if fh ~= self.frame.skipbtn then
                     BlzFrameSetVisible(fh, true)
                 end
             end
         end
     else
-        for _, fh in pairs(self.fr) do
+        for _, fh in pairs(self.frame) do
             BlzFrameSetVisible(fh, false)
         end
     end
@@ -321,18 +317,18 @@ end
 
 -- @bool = true to animate out (hide), false to animate in (show).
 function ScreenplaySystem:fadeOutFrame(bool)
-    FrameUtils.fadeFrame(bool, self.fr.backdrop, self.fadeDuration)
+    FrameUtils.fadeFrame(bool, self.frame.backdrop, self.fadeDuration)
 end
 
 
 -- when a new chain is being played, initialize the default display.
 function ScreenplaySystem:clear()
     ScreenplayUtils.clearInterpolation()
-    BlzFrameSetText(self.fr.text, "")
-    BlzFrameSetText(self.fr.title, "")
+    BlzFrameSetText(self.frame.text, "")
+    BlzFrameSetText(self.frame.title, "")
     if self.fade then
-        BlzFrameSetAlpha(self.fr.text, 0)
-        BlzFrameSetAlpha(self.fr.title, 0)
+        BlzFrameSetAlpha(self.frame.text, 0)
+        BlzFrameSetAlpha(self.frame.title, 0)
     end
 end
 
@@ -475,8 +471,8 @@ function ScreenplaySystem.item:play()
         ScreenplaySystem.messageUncoverTimer = nil
     end
 
-    BlzFrameSetVisible(ScreenplaySystem.fr.backdrop, true)
-    BlzFrameSetText(ScreenplaySystem.fr.title, ScreenplaySystem.titleColorHex .. self.actor.name .. "|r")
+    BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, true)
+    BlzFrameSetText(ScreenplaySystem.frame.title, ScreenplaySystem.TITLE_COLOR_HEX .. self.actor.name .. "|r")
     if self.choices then
         self:playChoices()
     else
@@ -495,11 +491,11 @@ function ScreenplaySystem.item:play()
         SimpleUtils.playSound(self.sound)
     end
 
-    BlzFrameSetVisible(ScreenplaySystem.fr.title, true)
-    BlzFrameSetVisible(ScreenplaySystem.fr.text, true)
+    BlzFrameSetVisible(ScreenplaySystem.frame.title, true)
+    BlzFrameSetVisible(ScreenplaySystem.frame.text, true)
     if ScreenplaySystem.fade and ScreenplaySystem.prevActor ~= self.actor then
-        FrameUtils.fadeFrame(false, ScreenplaySystem.fr.title, ScreenplaySystem.fadeDuration)
-        FrameUtils.fadeFrame(false, ScreenplaySystem.fr.text, ScreenplaySystem.fadeDuration)
+        FrameUtils.fadeFrame(false, ScreenplaySystem.frame.title, ScreenplaySystem.fadeDuration)
+        FrameUtils.fadeFrame(false, ScreenplaySystem.frame.text, ScreenplaySystem.fadeDuration)
     end
 
     if ScreenplaySystem.currentVariantConfig.unitPan then
@@ -527,7 +523,7 @@ function ScreenplaySystem.item:playText()
     end
 
     --send msg and clear it immediately - just for the purpose of having the messages in transmission log
-    DisplayTimedTextToPlayer(GetLocalPlayer(), 0.0, 0.0, 0.1, ScreenplaySystem.titleColorHex .. self.actor.name .. "|r: " .. self.text)
+    DisplayTimedTextToPlayer(GetLocalPlayer(), 0.0, 0.0, 0.1, ScreenplaySystem.TITLE_COLOR_HEX .. self.actor.name .. "|r: " .. self.text)
     ClearTextMessages()
 
     ScreenplaySystem.messageUncoverTimer = SimpleUtils.timedRepeat(ScreenplaySystem.currentVariantConfig.speed, count, function(timer)
@@ -541,11 +537,11 @@ function ScreenplaySystem.item:playText()
             else
                 pos = pos + 1
             end
-            BlzFrameSetText(ScreenplaySystem.fr.text, ScreenplaySystem.textColorHex .. string.sub(self.text, 1, pos))
-            ScreenplayUtils.fixFocus(ScreenplaySystem.fr.text)
+            BlzFrameSetText(ScreenplaySystem.frame.text, ScreenplaySystem.TEXT_COLOR_HEX .. string.sub(self.text, 1, pos))
+            ScreenplayUtils.fixFocus(ScreenplaySystem.frame.text)
         else
             ScreenplaySystem.itemFullyDisplayed = true
-            BlzFrameSetText(ScreenplaySystem.fr.text, ScreenplaySystem.textColorHex .. self.text)
+            BlzFrameSetText(ScreenplaySystem.frame.text, ScreenplaySystem.TEXT_COLOR_HEX .. self.text)
             ReleaseTimer(timer)
             if ScreenplaySystem.currentVariantConfig.autoMoveNext == true then
                 ScreenplaySystem.autoplayTimer = SimpleUtils.timed(delay, function()
@@ -562,12 +558,12 @@ function ScreenplaySystem.item:playChoices()
     local displayedIndex = 1
     for index, choice in ipairs(ScreenplaySystem.currentChoices) do
         if choice:isVisible() then
-            local color = SimpleUtils.ifElse(index == ScreenplaySystem.currentChoiceIndex, ScreenplaySystem.textColorHex, ScreenplaySystem.inactiveChoiceColorHex)
+            local color = SimpleUtils.ifElse(index == ScreenplaySystem.currentChoiceIndex, ScreenplaySystem.TEXT_COLOR_HEX, ScreenplaySystem.INACTIVE_CHOICE_COLOR_HEX)
             text = text .. color .. ((displayedIndex) .. ". " .. choice.text .. "|n")
             displayedIndex = displayedIndex + 1
         end
     end
-    BlzFrameSetText(ScreenplaySystem.fr.text, text)
+    BlzFrameSetText(ScreenplaySystem.frame.text, text)
     ScreenplaySystem.itemFullyDisplayed = true
 end
 
@@ -667,7 +663,7 @@ function ScreenplaySystem.chain:playNextInternal()
                         SimpleUtils.fadeIn(currentItem.fadeInDuration)
                     end
 
-                    BlzFrameSetVisible(ScreenplaySystem.fr.backdrop, false)
+                    BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, false)
                     ScreenplaySystem:sendDummyTransmission()
                     ScreenplaySystem.delayTimer = SimpleUtils.timed(initialDelay, function()
                         ScreenplaySystem.delayTimer = nil
