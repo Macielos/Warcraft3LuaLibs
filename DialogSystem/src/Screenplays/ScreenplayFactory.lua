@@ -13,6 +13,15 @@ function ScreenplayFactory.createActor(unit, customName)
 end
 
 --[[
+    Alternatively you can have an actor without actual unit
+]]
+function ScreenplayFactory.createActorFromType(unitType, player, customName)
+    local actor = ScreenplaySystem.actor:new()
+    actor:assignByType(unitType, player, customName)
+    return actor
+end
+
+--[[
     Stores a screenplay builder function under a given name. The function will be called when starting a scene by name.
 ]]
 function ScreenplayFactory:saveBuilder(name, screenplayBuilderFunction)

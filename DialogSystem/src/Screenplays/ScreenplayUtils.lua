@@ -1,15 +1,6 @@
 ScreenplayUtils = {} -- utility class with functions you can use in your screenplays
 ScreenplayUtils.debug = false
 
-function ScreenplayUtils.speechIndicator(unit)
-    UnitAddIndicatorBJ(unit, 0.00, 100, 0.00, 0)
-end
-
-function ScreenplayUtils.fixFocus(fh)
-    BlzFrameSetEnable(fh, false)
-    BlzFrameSetEnable(fh, true)
-end
-
 function ScreenplayUtils.interpolateCameraFromCurrentTillEndOfCurrentItem(cameraTo)
     return ScreenplayUtils.interpolateCameraFromCurrent(cameraTo, ScreenplayUtils.getCurrentItemDuration())
 end
@@ -95,6 +86,10 @@ end
 
 function ScreenplayUtils.getCurrentItemDuration()
     return SimpleUtils.debugFunc(function()
-        return ScreenplaySystem:currentItem():getDuration()
+        local currentItem = ScreenplaySystem:currentItem()
+        if currentItem == nil then
+            return 0.0
+        end
+        return currentItem:getDuration()
     end, "getCurrentItemDuration")
 end

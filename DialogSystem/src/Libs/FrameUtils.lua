@@ -69,3 +69,10 @@ function FrameUtils.getChildByName(parent, expectedChildName)
         end
     end
 end
+
+
+function FrameUtils.fixFocus(fh)
+    BlzFrameSetEnable(fh, false)
+    BlzFrameSetEnable(fh, true)
+end
+

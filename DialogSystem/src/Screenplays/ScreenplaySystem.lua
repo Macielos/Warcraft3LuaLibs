@@ -1,3 +1,22 @@
+--[[
+    Important API functions you may need - see their documentation below
+        ScreenplaySystem.chain:buildFromObject({
+            [1] = {
+                text = "Lorem ipsum...",
+                actor = actorFootman,
+            }) - validates and builds a chain of messages
+
+        ScreenplaySystem:startSceneByName('myScreenplayName', 'inGame', gg_trg_MyScreenplayEndTrigger, true)
+        - starts a scene by name previously saved using ScreenplayFactory.saveBuilder() function
+
+        ScreenplaySystem.currentChain - get currently played message chain if present. Note that it's a field, not a function.
+
+        ScreenplaySystem:currentItem() - get currently played item from the current chain if exists
+
+        ScreenplaySystem:goTo(index) - immediately go to given index.
+
+        ScreenplaySystem:isActive() - is any scene playing at the moment?
+]]
 ScreenplaySystem = {   -- main dialogue class, configuration options can be found in ScreenplayVariants.lua
     FDF_BACKDROP = "EscMenuBackdrop",
     FDF_TITLE = "CustomText", -- from imported .fdf
@@ -22,7 +41,7 @@ ScreenplaySystem = {   -- main dialogue class, configuration options can be foun
     cameraInterpolationTimer,
     delayTimer,
     fadeoutTimer,
-    lastActorSpeaking,
+    lastActorUnitTypeSpeaking,
 }
 
 ScreenplaySystem.item = {   -- sub class for dialogue strings and how they play.
@@ -141,12 +160,14 @@ function ScreenplaySystem:initScene()
     self.initialized = true
 end
 
+-- start a scene by name previously saved using ScreenplayFactory.saveBuilder() function, display it using a given
+-- variant from ScreenplayVariants. Optionally pass trigger to run on scene end and a bool flag whether it should
+-- interrupt existing scene
 function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting)
     SimpleUtils.debugFunc(function()
         ScreenplaySystem:startScene(self:buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
     end, "startSceneByName " .. name .. ", " .. variant)
 end
-
 
 function ScreenplaySystem:buildScreenplay(name)
     return SimpleUtils.debugFunc(function()
@@ -157,7 +178,7 @@ function ScreenplaySystem:buildScreenplay(name)
 end
 
 function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interruptExisting)
-    SimpleUtils.debugFunc( function()
+    SimpleUtils.debugFunc(function()
         if udg_screenplayActive == true then
             if interruptExisting == true or variant.interruptExisting == true then
                 ScreenplaySystem.printDebug("interrupting existing scene...")
@@ -334,13 +355,19 @@ function ScreenplaySystem:clear()
     end
 end
 
+-- get currently played item from the current chain if exists
 function ScreenplaySystem:currentItem()
     return self.currentChain[self.currentIndex]
 end
 
+function ScreenplaySystem:playCurrentItem()
+    --can't join choices with delayText
+    self:currentItem():play()
+end
 
+-- action listener functions, typically called by predefined triggers available in demo map
 function ScreenplaySystem:onPreviousChoice()
-    SimpleUtils.debugFunc( function()
+    SimpleUtils.debugFunc(function()
         ScreenplaySystem.printDebug("onPreviousChoice: ", tostring(self.currentChoiceIndex))
         if not self.currentChoiceIndex or not self.currentChoices then
             return
@@ -356,7 +383,7 @@ function ScreenplaySystem:onPreviousChoice()
 end
 
 function ScreenplaySystem:onNextChoice()
-    SimpleUtils.debugFunc( function()
+    SimpleUtils.debugFunc(function()
         ScreenplaySystem.printDebug("onNextChoice: ", tostring(self.currentChoiceIndex))
         if not self.currentChoiceIndex or not self.currentChoices then
             return
@@ -372,13 +399,8 @@ function ScreenplaySystem:onNextChoice()
     end, "onNextChoice")
 end
 
-function ScreenplaySystem:playCurrentItem()
-    --can't join choices with delayText
-    self:currentItem():play()
-end
-
 function ScreenplaySystem:onSelectChoice()
-    SimpleUtils.debugFunc( function()
+    SimpleUtils.debugFunc(function()
         ScreenplaySystem.printDebug("onSelectChoice: " .. tostring(self.currentChoiceIndex))
         if self.currentChoices then
             if self:isValidChoice() then
@@ -398,6 +420,25 @@ function ScreenplaySystem:onSelectChoice()
     end, "onSelectChoice")
 end
 
+function ScreenplaySystem:onRewind()
+    SimpleUtils.debugFunc(function()
+        if self.currentVariantConfig.rewindable == true then
+            ScreenplaySystem.printDebug("onRewind, currentItemIndex: ", tostring(self.currentIndex))
+            self.currentChain:rewind()
+        end
+    end, "onRewind")
+end
+
+function ScreenplaySystem:onLoad()
+    SimpleUtils.debugFunc(function()
+        loadAndInitFrames()
+        self:refreshFrames()
+        self:playCurrentItem()
+    end, "onLoad")
+end
+
+-- END action listener functions
+
 function ScreenplaySystem:isValidChoice()
     if self.currentChoiceIndex <= 0 then
         return false
@@ -409,24 +450,11 @@ end
 function ScreenplaySystem:canSkipItem()
     return self.currentVariantConfig.skippable == true and ScreenplaySystem:currentItem().skippable == true and self.fadeoutTimer == nil
 end
-
-function ScreenplaySystem:onRewind()
-    SimpleUtils.debugFunc( function()
-        if self.currentVariantConfig.rewindable == true then
-            ScreenplaySystem.printDebug("onRewind, currentItemIndex: ", tostring(self.currentIndex))
-            self.currentChain:rewind()
-        end
-    end, "onRewind")
-end
-
-function ScreenplaySystem:onLoad()
-    SimpleUtils.debugFunc( function()
-        loadAndInitFrames()
-        self:refreshFrames()
-        self:playCurrentItem()
-    end, "onLoad")
-end
-
+--[[
+    immediately go to given index. Mostly meant to be used in screenplay choices, in onChoice function. If given index
+    from outside current chain range, it will print warning and do nothing. When called by external scripts, should be
+    followed by ScreenplaySystem:playCurrentItem().
+]]
 function ScreenplaySystem:goTo(index)
     if not self.currentChain:isValidIndex(index) then
         printWarn("Invalid goTo index " .. tostring(index) .. ", cannot proceed")
@@ -443,19 +471,41 @@ end
 function ScreenplaySystem:sendTransmission(actor, text)
     local count = string.len(text)
     local msgLength = self.currentVariantConfig.autoMoveNextDelay + count * self.currentVariantConfig.speed * 2 --FIXME attempt to compensate diff between expected and real time of SimpleUtils.timedRepeat()
-    self.lastActorSpeaking = actor
-    DoTransmissionBasicsXYBJ(GetUnitTypeId(actor), GetPlayerColor(GetOwningPlayer(actor)), GetUnitX(actor), GetUnitY(actor), nil, "", "", msgLength)
+
+    local unitType
+    local player
+    local x
+    local y
+    if actor.unit then
+        unitType = GetUnitTypeId(actor.unit)
+        player = GetOwningPlayer(actor.unit)
+        x = GetUnitX(actor.unit)
+        y = GetUnitY(actor.unit)
+    else
+        unitType = actor.unitType
+        player = actor.player
+        x = 0
+        y = 0
+    end
+
+    self.lastActorUnitTypeSpeaking = unitType
+    self.lastActorPlayerSpeaking = player
+    DoTransmissionBasicsXYBJ(unitType, GetPlayerColor(player), x, y, nil, "", "", msgLength)
 end
 
 function ScreenplaySystem:sendDummyTransmission()
-    if self.lastActorSpeaking then
-        DoTransmissionBasicsXYBJ(GetUnitTypeId(self.lastActorSpeaking), GetPlayerColor(GetOwningPlayer(self.lastActorSpeaking)), GetUnitX(self.lastActorSpeaking), GetUnitY(self.lastActorSpeaking), nil, "", "", 0.5)
-        self.lastActorSpeaking = nil
+    if self.lastActorUnitTypeSpeaking then
+        DoTransmissionBasicsXYBJ(self.lastActorUnitTypeSpeaking, GetPlayerColor(self.lastActorPlayerSpeaking),0, 0, nil, "", "", 0.5)
+        self.lastActorUnitTypeSpeaking = nil
     end
 end
 
--- @unit = assign the unit responsible for @portrait.
--- @portrait = portrait object for @unit.
+-- is any scene playing at the moment?
+function ScreenplaySystem:isActive()
+    return udg_screenplayActive
+end
+
+-- assign the unit to an actor, optionally with custom name
 function ScreenplaySystem.actor:assign(unit, customName)
     self.unit = unit
     if customName then
@@ -463,6 +513,22 @@ function ScreenplaySystem.actor:assign(unit, customName)
     else
         self.name = GetUnitName(unit)
     end
+end
+
+-- if you don't want to create unit, you can also assign unit type and player to an actor, optionally with custom name
+-- of course, with such actors camera panning, unit flashes and animations are not available
+function ScreenplaySystem.actor:assignByType(unitType, player, customName)
+    self.unitType = unitType
+    self.player = player
+    if customName then
+        self.name = customName
+    else
+        self.name = GetObjectName(unitType)
+    end
+end
+
+local function speechIndicator(unit)
+    UnitAddIndicatorBJ(unit, 0.00, 100, 0.00, 0)
 end
 
 -- play a speech item, rendering its string characters over time and displaying actor details.
@@ -480,14 +546,17 @@ function ScreenplaySystem.item:play()
     else
         self:playText()
     end
-    -- run additional speech inputs if present:
-    if ScreenplaySystem.currentVariantConfig.unitFlash then
-        ScreenplayUtils.speechIndicator(self.actor.unit)
-    end
-    if not (self.anim == nil) then
-        ResetUnitAnimation(self.actor.unit)
-        QueueUnitAnimation(self.actor.unit, self.anim)
-        QueueUnitAnimation(self.actor.unit, "stand")
+
+    if self.actor.unit then
+        -- run additional speech inputs if present:
+        if ScreenplaySystem.currentVariantConfig.unitFlash then
+            speechIndicator(self.actor.unit)
+        end
+        if not (self.anim == nil) then
+            ResetUnitAnimation(self.actor.unit)
+            QueueUnitAnimation(self.actor.unit, self.anim)
+            QueueUnitAnimation(self.actor.unit, "stand")
+        end
     end
     if not (self.sound == nil) then
         SimpleUtils.playSound(self.sound)
@@ -500,7 +569,7 @@ function ScreenplaySystem.item:play()
         FrameUtils.fadeFrame(false, ScreenplaySystem.frame.text, ScreenplaySystem.fadeDuration)
     end
 
-    if ScreenplaySystem.currentVariantConfig.unitPan then
+    if self.actor.unit and ScreenplaySystem.currentVariantConfig.unitPan then
         ScreenplaySystem.cameraTargetX = GetUnitX(self.actor.unit)
         ScreenplaySystem.cameraTargetY = GetUnitY(self.actor.unit)
     end
@@ -521,7 +590,7 @@ function ScreenplaySystem.item:playText()
     local delay = self:getDuration()
 
     if ScreenplaySystem.currentVariantConfig.cinematicMode then
-        ScreenplaySystem:sendTransmission(self.actor.unit, self.text)
+        ScreenplaySystem:sendTransmission(self.actor, self.text)
     end
 
     --send msg and clear it immediately - just for the purpose of having the messages in transmission log
@@ -540,7 +609,7 @@ function ScreenplaySystem.item:playText()
                 pos = pos + 1
             end
             BlzFrameSetText(ScreenplaySystem.frame.text, ScreenplaySystem.TEXT_COLOR_HEX .. string.sub(self.text, 1, pos))
-            ScreenplayUtils.fixFocus(ScreenplaySystem.frame.text)
+            FrameUtils.fixFocus(ScreenplaySystem.frame.text)
         else
             ScreenplaySystem.itemFullyDisplayed = true
             BlzFrameSetText(ScreenplaySystem.frame.text, ScreenplaySystem.TEXT_COLOR_HEX .. self.text)
@@ -578,6 +647,16 @@ function ScreenplaySystem.item:getDuration()
         return 0
     end
     return ScreenplaySystem.currentVariantConfig.autoMoveNextDelay + string.len(self.text) * ScreenplaySystem.currentVariantConfig.speed + self.delayNextItem + self.fadeInDuration + self.fadeOutDuration
+end
+
+function ScreenplaySystem.item:isActorAlive()
+    if self.actor.unitType and self.actor.player then
+        return true
+    end
+    if self.actor.unit then
+        return IsUnitAliveBJ(self.actor.unit)
+    end
+    return false
 end
 
 -- after a speech item completes, see what needs to happen next (load next item or close, etc.)
@@ -629,7 +708,7 @@ function ScreenplaySystem.chain:playNextInternal()
         if currentItem == nil or currentItem.skipTimers == true then
             SkippableTimers:skip()
         end
-        if not self[ScreenplaySystem.currentIndex] or not self[ScreenplaySystem.currentIndex].actor.unit or IsUnitDeadBJ(self[ScreenplaySystem.currentIndex].actor.unit) then
+        if not self[ScreenplaySystem.currentIndex] or not self[ScreenplaySystem.currentIndex]:isActorAlive() then
             -- if next item was set to nil or is empty, try to skip over:
             self:playNext()
         else
@@ -707,12 +786,13 @@ function ScreenplaySystem.chain:isCurrentChoiceRewindable(index)
 end
 
 function ScreenplaySystem.chain:getNextIndexForRewind(index)
-    if self[index].choices ~= nil and self:isCurrentChoiceRewindable(index)  then
+    if self[index].choices ~= nil and self:isCurrentChoiceRewindable(index) then
         return self[index].onRewindGoTo
     end
     return self:getNextIndexForIndex(index)
 end
 
+-- rewinds a current chain to the next interactive and non-rewindable item (usually a choice). If it reaches the end, ends scene
 function ScreenplaySystem.chain:rewind()
     local currentIndex = ScreenplaySystem.currentIndex;
     ScreenplaySystem.printDebug("Rewind - current index: " .. tostring(currentIndex))
@@ -742,6 +822,22 @@ function ScreenplaySystem.chain:rewind()
     self:playNextInternal()
 end
 
+--[[
+  Validates and builds a screenplay chain of messages to be run in
+    a scene. See demo map for examples. I recommend using it together with a builder function so that it is
+    invoked lazily upon scene start, when all actors are present. So, you can keep your screenplays in separate
+    scripts like below:
+        ScreenplayFactory:saveBuilder('myScreenplayName', function()  --'myScreenplayName' should be unique within a map
+            actorFootman = ScreenplayFactory.createActor(udg_footman, 'Footman Valdeck') -- created actors can be kept either locally within each script, or saved to some global variables
+            actorOrc = ScreenplayFactory.createActor(udg_orc)
+            return ScreenplaySystem.chain:buildFromObject({
+            [1] = {
+                text = "Lorem ipsum...",
+                actor = actorFootman, --
+            }),
+            [2] = ...
+        })
+]]
 function ScreenplaySystem.chain:buildFromObject(buildFrom)
     assert(buildFrom and buildFrom[1], "error: ScreenplaySystem.chain:buildFromObject is missing an index-value table argument.")
     local newChain = ScreenplaySystem.chain:new()
@@ -750,6 +846,7 @@ function ScreenplaySystem.chain:buildFromObject(buildFrom)
         ScreenplaySystem.printDebug("building pair " .. tostring(itemIndex) .. ": " .. tostring(item.text) .. ", " .. tostring(item.choices))
         assert(item.text or item.choices, "error in item " .. itemIndex .. ": text or choices must not be empty")
         assert(item.actor, "error in item " .. itemIndex .. ": actor must not be empty")
+        assert(item.actor.unit or (item.actor.unitType and item.actor.player), "error in item " .. itemIndex .. ": actor must have either a unit, or unit type and player")
         newChain[itemIndex] = ScreenplaySystem.item:new()
         if item.text then
             newChain[itemIndex].text = item.text
@@ -863,8 +960,4 @@ end
 
 function ScreenplaySystem.chain:isValidIndex(index)
     return index > 0 and index <= SimpleUtils.tableLength(self)
-end
-
-function ScreenplaySystem:isActive()
-    return udg_screenplayActive
 end

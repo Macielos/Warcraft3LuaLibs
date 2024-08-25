@@ -62,6 +62,10 @@ https://github.com/Macielos/ScreenplayGenerator/
 
 ===========
 
+Notes:
+- This library overrides InitBlizzard() function
+- This library was never meant to be used in multiplayer. Scenes are displayed for local player only and there is no data syncing mechanism. My guess would be that non-pausing config variants will work, but for pausing ones you'd have to handle pausing game for other players and events like: one player has a choice window open and the other one attacks him.
+
 Compatibility:
 - I'm currently using the library on Reforged only, but it should work on 1.31 as it only uses very basic native functions. Just make sure your map uses LUA. I remember that I ran some early versions on 1.31.
 
