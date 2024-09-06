@@ -48,7 +48,7 @@ it in some IDE (I personally use IntelliJ Idea with LUA plugin) or text editor t
 does formatting etc. You can find a list of available fields and their descriptions in a file ScreenplaySystem.lua,
 near the beginning. If there's demand, I can prepare some more detailed docs.
 
-​Usage:
+Usage:
 - Download a demo map
 - Copy Import folder
 - Open your map, make sure you have LUA as your script language in map options
@@ -63,8 +63,12 @@ https://github.com/Macielos/ScreenplayGenerator/
 ===========
 
 Notes:
-- This library overrides InitBlizzard() function
+- This library overrides InitBlizzard() function to call custom initialization code
 - This library was never meant to be used in multiplayer. Scenes are displayed for local player only and there is no data syncing mechanism. My guess would be that non-pausing config variants will work, but for pausing ones you'd have to handle pausing game for other players and events like: one player has a choice window open and the other one attacks him.
+- This library uses the following globals:
+  - global variable screenplayActive
+  - a camera called sceneCam (must be created)
+  - all global functions it adds are in GlobalFunctions.lua
 
 Compatibility:
 - I'm currently using the library on Reforged only, but it should work on 1.31 as it only uses very basic native functions. Just make sure your map uses LUA. I remember that I ran some early versions on 1.31.

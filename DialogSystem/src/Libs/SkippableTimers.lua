@@ -10,7 +10,7 @@ end
 
 function SkippableTimers:skip()
     for index, timer in ipairs(self.skippableTimers) do
-        ReleaseTimer(timer)
+        SimpleUtils.releaseTimer(timer)
     end
     self.skippableTimers = {}
 end

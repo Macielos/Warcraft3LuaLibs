@@ -29,7 +29,7 @@ function FrameUtils.fadeFrame(fade, frame, duration)
             else
                 BlzFrameSetAlpha(frame, 0)
                 BlzFrameSetVisible(frame, false)
-                ReleaseTimer(timer)
+                SimpleUtils.releaseTimer(timer)
             end
         end)
         -- hide:
@@ -43,7 +43,7 @@ function FrameUtils.fadeFrame(fade, frame, duration)
             else
                 BlzFrameSetAlpha(frame, 255)
                 BlzFrameSetVisible(frame, true)
-                ReleaseTimer(timer)
+                SimpleUtils.releaseTimer(timer)
             end
         end)
     end

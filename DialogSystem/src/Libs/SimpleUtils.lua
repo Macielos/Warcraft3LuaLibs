@@ -62,7 +62,7 @@ function SimpleUtils.newClass(t, constructor)
     t.destroy = function()
         t.lookupt[t] = nil
     end
-    if utils.debug then
+    if SimpleUtils.debug then
         print("made new class for " .. tostring(t))
     end
 end
@@ -72,7 +72,7 @@ function SimpleUtils.timed(dur, func)
     SimpleUtils.debugFunc(function()
         TimerStart(tmr, dur, false, function()
             func()
-            ReleaseTimer(tmr)
+            SimpleUtils.releaseTimer(tmr)
         end)
         return tmr
     end, 'SimpleUtilsTimed')
@@ -96,7 +96,7 @@ function SimpleUtils.timedRepeat(dur, count, func)
                 func(tmr)
                 c = c + 1
                 if c >= t then
-                    ReleaseTimer(tmr)
+                    SimpleUtils.releaseTimer(tmr)
                 end
             end)
         end
@@ -226,4 +226,13 @@ function SimpleUtils.getRandomNumbers(min, max, count)
         end
         return output
     end, "SimpleUtils.getRandomNumbers(min=" .. tostring(min) .. ", max=" .. tostring(max) .. ", count=" .. tostring(count) .. ")")
+end
+
+function SimpleUtils.releaseTimer(whichTimer)
+    PauseTimer(whichTimer)
+    DestroyTimer(whichTimer)
+end
+
+function SimpleUtils.printWarn(msg)
+    print("[WARN] " .. msg)
 end

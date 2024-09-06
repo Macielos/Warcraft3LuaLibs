@@ -35,7 +35,7 @@ function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
                 durationLeft = durationLeft - 1
                 if durationLeft <= 0 then
                     CameraSetupApplyForceDuration(cameraTo, true, 9999)
-                    ReleaseTimer(timer)
+                    SimpleUtils.releaseTimer(timer)
                 else
                     local interpolatedX = ScreenplayUtils.interpolate(CameraSetupGetDestPositionX(cameraFrom), CameraSetupGetDestPositionX(cameraTo), (durationInt - durationLeft) / durationInt)
                     local interpolatedY = ScreenplayUtils.interpolate(CameraSetupGetDestPositionY(cameraFrom), CameraSetupGetDestPositionY(cameraTo), (durationInt - durationLeft) / durationInt)
@@ -79,7 +79,7 @@ end
 
 function ScreenplayUtils.clearInterpolation()
     if ScreenplaySystem.cameraInterpolationTimer then
-        ReleaseTimer(ScreenplaySystem.cameraInterpolationTimer)
+        SimpleUtils.releaseTimer(ScreenplaySystem.cameraInterpolationTimer)
     end
     StopCamera()
 end
