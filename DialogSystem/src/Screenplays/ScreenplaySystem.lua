@@ -35,13 +35,13 @@ ScreenplaySystem = {   -- main dialogue class, configuration options can be foun
     frameInitialized = false,
     currentVariantConfig = nil,
     onSceneEndTrigger = nil,
-    messageUncoverTimer,
-    trackingCameraTimer,
-    autoplayTimer,
-    cameraInterpolationTimer,
-    delayTimer,
-    fadeoutTimer,
-    lastActorUnitTypeSpeaking,
+    messageUncoverTimer = nil,
+    trackingCameraTimer = nil,
+    autoplayTimer = nil,
+    cameraInterpolationTimer = nil,
+    delayTimer = nil,
+    fadeoutTimer = nil,
+    lastActorUnitTypeSpeaking = nil,
 }
 
 ScreenplaySystem.item = {   -- sub class for dialogue strings and how they play.
@@ -91,13 +91,13 @@ do
         end
     end
 
-    -- @bool = true to animate out (hide), false to animate in (show).
+    --- @param bool boolean  true to animate out (hide), false to animate in (show).
     local function fadeOutFrame(bool)
         FrameUtils.fadeFrame(bool, ScreenplaySystem.frame.backdrop, ScreenplaySystem.fadeDuration)
     end
 
-    -- @bool = true to show, false to hide.
-    -- @skipeffects = [optional] set to true skip fade animation.
+    --- @param bool boolean  true to show, false to hide.
+    --- @param skipeffects boolean  optional - set to true skip fade animation.
     local function show(show, skipEffects)
         if show then
             if ScreenplaySystem.fade and not skipEffects then
@@ -145,41 +145,39 @@ do
     end
 
     local function loadAndInitFrames()
-        SimpleUtils.debugFunc(function()
-            if not BlzLoadTOCFile('war3mapImported\\CustomFrameTOC.toc') then
-                print("error: .fdf file failed to load")
-                print("tip: are you missing a curly brace in the fdf?")
-                print("tip: does the .toc file have the correct file paths?")
-                print("tip: .toc files require an empty newline at the end")
-            end
-            ScreenplaySystem.consoleBackdrop = BlzGetFrameByName("ConsoleUIBackdrop",0)
-            ScreenplaySystem.gameui    = BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0)
-            initFrames()
-            if ScreenplaySystem.initialized then
-                refreshFrames()
-                playCurrentItem()
-            end
-        end, "loadAndInitFrames")
+        if not BlzLoadTOCFile('war3mapImported\\CustomFrameTOC.toc') then
+            print("error: .fdf file failed to load")
+            print("tip: are you missing a curly brace in the fdf?")
+            print("tip: does the .toc file have the correct file paths?")
+            print("tip: .toc files require an empty newline at the end")
+        end
+        ScreenplaySystem.consoleBackdrop = BlzGetFrameByName("ConsoleUIBackdrop",0)
+        ScreenplaySystem.gameui    = BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0)
+        initFrames()
+        if ScreenplaySystem.initialized then
+            refreshFrames()
+            playCurrentItem()
+        end
     end
 
-    -- @bool = true to enter dialogue camera; false to exit.
+    ---enableCamera
+    ---@param bool boolean  true - enable dialogue camera; false - return to game camera.
+    ---@param sync boolean  true - execute instantly; false - enabling/disabling takes cameraSpeed seconds
     local function enableCamera(bool, sync)
-        SimpleUtils.debugFunc(function()
-            local cameraSpeed = SimpleUtils.ifElse(sync, 0, ScreenplaySystem.currentVariantConfig.cameraSpeed)
-            if bool then
-                ClearTextMessagesBJ(bj_FORCE_ALL_PLAYERS)
-                TimerStart(ScreenplaySystem.trackingCameraTimer, 0.03, true, function()
-                    CameraSetupApplyForPlayer(true, ScreenplaySystem.sceneCamera, GetLocalPlayer(), cameraSpeed)
-                    PanCameraToTimedForPlayer(GetLocalPlayer(), ScreenplaySystem.cameraTargetX, ScreenplaySystem.cameraTargetY, cameraSpeed)
-                end)
-            else
-                PauseTimer(ScreenplaySystem.trackingCameraTimer)
-                ResetToGameCameraForPlayer(GetLocalPlayer(), cameraSpeed)
-            end
-        end, "enableCamera")
+        local cameraSpeed = SimpleUtils.ifElse(sync, 0, ScreenplaySystem.currentVariantConfig.cameraSpeed)
+        if bool then
+            ClearTextMessagesBJ(bj_FORCE_ALL_PLAYERS)
+            TimerStart(ScreenplaySystem.trackingCameraTimer, 0.03, true, function()
+                CameraSetupApplyForPlayer(true, ScreenplaySystem.sceneCamera, GetLocalPlayer(), cameraSpeed)
+                PanCameraToTimedForPlayer(GetLocalPlayer(), ScreenplaySystem.cameraTargetX, ScreenplaySystem.cameraTargetY, cameraSpeed)
+            end)
+        else
+            PauseTimer(ScreenplaySystem.trackingCameraTimer)
+            ResetToGameCameraForPlayer(GetLocalPlayer(), cameraSpeed)
+        end
     end
 
-    -- when a new chain is being played, initialize the default display.
+    --- when a new chain is being played, initialize the default display.
     local function clear()
         ScreenplayUtils.clearInterpolation()
         BlzFrameSetText(ScreenplaySystem.frame.text, "")
@@ -190,7 +188,7 @@ do
         end
     end
 
-    -- initialize the scene interface (e.g. typically if you are running a cinematic component first).
+    --- initialize the scene interface (e.g. typically if you are running a cinematic component first).
     local function initScene()
         clear()
         if ScreenplaySystem.currentVariantConfig.cinematicMode then
@@ -219,7 +217,7 @@ do
         ScreenplaySystem.initialized = true
     end
 
-    -- initialize classes and class specifics:
+    --- initialize classes and class specifics, always called at map init
     function ScreenplaySystem:init()
         SimpleUtils.newClass(ScreenplaySystem.actor)
         SimpleUtils.newClass(ScreenplaySystem.item)
@@ -242,59 +240,58 @@ do
     end
 
     local function buildScreenplay(name)
-        return SimpleUtils.debugFunc(function()
-            local builder = ScreenplayFactory.screenplayBuilders[name]
-            printDebug("calling builder for " .. tostring(name))
-            return builder()
-        end, "buildScreenplay " .. tostring(name))
+        local builder = ScreenplayFactory.screenplayBuilders[name]
+        printDebug("calling builder for " .. tostring(name))
+        return builder()
     end
 
-    -- start a scene by name previously saved using ScreenplayFactory.saveBuilder() function, display it using a given
-    -- variant from ScreenplayVariants. Optionally pass trigger to run on scene end and a bool flag whether it should
-    -- interrupt existing scene
+    ---startSceneByName
+    --- start a scene by name previously saved using ScreenplayFactory.saveBuilder() function, display it using a given
+    --- variant from ScreenplayVariants. Optionally pass trigger to run on scene end and a bool flag whether it should
+    --- interrupt existing scene
+    ---@param name string
+    ---@param variant string
+    ---@param onSceneEndTrigger trigger
+    ---@param interruptExisting boolean
     function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting)
-        SimpleUtils.debugFunc(function()
-            ScreenplaySystem:startScene(buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
-        end, "startSceneByName " .. name .. ", " .. variant)
+        ScreenplaySystem:startScene(buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
     end
 
     function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interruptExisting)
-        SimpleUtils.debugFunc(function()
-            if self:isActive() then
-                if interruptExisting == true or variant.interruptExisting == true then
-                    printDebug("interrupting existing scene...")
-                    clear()
-                    self:endScene(true)
-                else
-                    printDebug("existing scene found, aborting...")
-                    return
-                end
-            end
-
-            printDebug("Starting scene...")
-            ClearTextMessages()
-
-            self.currentVariantConfig = ScreenplayVariants[variant]
-            self.onSceneEndTrigger = onSceneEndTrigger
-            assert(self.currentVariantConfig, "invalid frame variant: " .. variant)
-            self.currentIndex = 0
-            self.currentChain = SimpleUtils.deepCopy(chain)
-            self.paused = false
-            if not self.initialized then
-                initScene()
-            end
-            if self.frameInitialized then
-                refreshFrames()
-            end
-
-            if self.fade then
-                fadeOutFrame(false)
+        if self:isActive() then
+            if interruptExisting == true or variant.interruptExisting == true then
+                printDebug("interrupting existing scene...")
+                clear()
+                self:endScene(true)
             else
-                BlzFrameSetVisible(self.frame.backdrop, true)
+                printDebug("existing scene found, aborting...")
+                return
             end
-            printDebug("calling first playNext")
-            self.currentChain:playNext()
-        end, "startScene")
+        end
+
+        printDebug("Starting scene...")
+        ClearTextMessages()
+
+        self.currentVariantConfig = ScreenplayVariants[variant]
+        self.onSceneEndTrigger = onSceneEndTrigger
+        assert(self.currentVariantConfig, "invalid frame variant: " .. variant)
+        self.currentIndex = 0
+        self.currentChain = SimpleUtils.deepCopy(chain)
+        self.paused = false
+        if not self.initialized then
+            initScene()
+        end
+        if self.frameInitialized then
+            refreshFrames()
+        end
+
+        if self.fade then
+            fadeOutFrame(false)
+        else
+            BlzFrameSetVisible(self.frame.backdrop, true)
+        end
+        printDebug("calling first playNext")
+        self.currentChain:playNext()
     end
 
     local function sendDummyTransmission()
@@ -405,89 +402,79 @@ do
 
     -- action listener functions, typically called by predefined triggers available in demo map
     function ScreenplaySystem:onPreviousChoice()
-        SimpleUtils.debugFunc(function()
-            printDebug("onPreviousChoice: ", tostring(self.currentChoiceIndex))
-            if not self.currentChoiceIndex or not self.currentChoices then
-                return
-            end
-            if self.currentChoiceIndex > 1
-            then
-                repeat
-                    self.currentChoiceIndex = self.currentChoiceIndex - 1
-                until self.currentChoices[self.currentChoiceIndex]:isVisible() or self.currentChoiceIndex == 1
-                playCurrentItem()
-            end
-        end, "onPreviousChoice")
+        printDebug("onPreviousChoice: ", tostring(self.currentChoiceIndex))
+        if not self.currentChoiceIndex or not self.currentChoices then
+            return
+        end
+        if self.currentChoiceIndex > 1
+        then
+            repeat
+                self.currentChoiceIndex = self.currentChoiceIndex - 1
+            until self.currentChoices[self.currentChoiceIndex]:isVisible() or self.currentChoiceIndex == 1
+            playCurrentItem()
+        end
     end
 
     function ScreenplaySystem:onNextChoice()
-        SimpleUtils.debugFunc(function()
-            printDebug("onNextChoice: ", tostring(self.currentChoiceIndex))
-            if not self.currentChoiceIndex or not self.currentChoices then
-                return
-            end
-            local tableLength = SimpleUtils.tableLength(self.currentChoices)
-            if self.currentChoiceIndex < tableLength
-            then
-                repeat
-                    self.currentChoiceIndex = self.currentChoiceIndex + 1
-                until self.currentChoices[self.currentChoiceIndex]:isVisible() or self.currentChoiceIndex == tableLength
-                playCurrentItem()
-            end
-        end, "onNextChoice")
+        printDebug("onNextChoice: ", tostring(self.currentChoiceIndex))
+        if not self.currentChoiceIndex or not self.currentChoices then
+            return
+        end
+        local tableLength = SimpleUtils.tableLength(self.currentChoices)
+        if self.currentChoiceIndex < tableLength
+        then
+            repeat
+                self.currentChoiceIndex = self.currentChoiceIndex + 1
+            until self.currentChoices[self.currentChoiceIndex]:isVisible() or self.currentChoiceIndex == tableLength
+            playCurrentItem()
+        end
     end
 
     function ScreenplaySystem:onSelectChoice()
-        SimpleUtils.debugFunc(function()
-            printDebug("onSelectChoice: " .. tostring(self.currentChoiceIndex))
-            if self.currentChoices then
-                if isValidChoice() then
-                    printDebug("currentChoices:onChoice() - valid choice")
-                    self.currentChoices[self.currentChoiceIndex]:onChoice()
-                    self.currentChoices[self.currentChoiceIndex].chosen = true
-                    self.currentChoices = nil
-                    self.currentChoiceIndex = 0
-                    self.currentChain:playNextInternal()
-                end
-            elseif (canSkipItem()) then
-                printDebug("will call clickNext()")
-                clickNext()
-            else
-                printDebug("Couldn't select choice")
+        printDebug("onSelectChoice: " .. tostring(self.currentChoiceIndex))
+        if self.currentChoices then
+            if isValidChoice() then
+                printDebug("currentChoices:onChoice() - valid choice")
+                self.currentChoices[self.currentChoiceIndex]:onChoice()
+                self.currentChoices[self.currentChoiceIndex].chosen = true
+                self.currentChoices = nil
+                self.currentChoiceIndex = 0
+                self.currentChain:playNextInternal()
             end
-        end, "onSelectChoice")
+        elseif (canSkipItem()) then
+            printDebug("will call clickNext()")
+            clickNext()
+        else
+            printDebug("Couldn't select choice")
+        end
     end
 
     function ScreenplaySystem:onRewind()
-        SimpleUtils.debugFunc(function()
-            if self.currentVariantConfig.rewindable == true then
-                printDebug("onRewind, currentItemIndex: ", tostring(self.currentIndex))
-                self.currentChain:rewind()
-            end
-        end, "onRewind")
+        if self.currentVariantConfig.rewindable == true then
+            printDebug("onRewind, currentItemIndex: ", tostring(self.currentIndex))
+            self.currentChain:rewind()
+        end
     end
 
     function ScreenplaySystem:onLoad()
-        SimpleUtils.debugFunc(function()
-            loadAndInitFrames()
-            refreshFrames()
-            playCurrentItem()
-        end, "onLoad")
+        loadAndInitFrames()
+        refreshFrames()
+        playCurrentItem()
     end
 
     -- END action listener functions
-
 
     local function goToInternal(index)
         printDebug("index " .. ScreenplaySystem.currentIndex .. " -> " .. index .. ", table length " .. SimpleUtils.tableLength(ScreenplaySystem.currentChain))
         ScreenplaySystem.currentIndex = index
     end
 
-    --[[
-        immediately go to given index. Mostly meant to be used in screenplay choices, in onChoice function. If given index
-        from outside current chain range, it will print warning and do nothing. When called by external scripts, should be
-        followed by ScreenplaySystem:playCurrentItem().
-    ]]
+    ---
+    --- Immediately go to given index. Mostly meant to be used in screenplay choices, in onChoice function. If given index
+    --- from outside current chain range, it will print warning and do nothing. When called by external scripts, should be
+    --- followed by ScreenplaySystem:playCurrentItem().
+    ---
+    ---@param index number
     function ScreenplaySystem:goTo(index)
         if not self.currentChain:isValidIndex(index) then
             SimpleUtils.printWarn("Invalid goTo index " .. tostring(index) .. ", cannot proceed")
@@ -521,31 +508,10 @@ do
         DoTransmissionBasicsXYBJ(unitType, GetPlayerColor(player), x, y, nil, "", "", msgLength)
     end
 
-    -- is any scene playing at the moment?
+    --- Is any scene playing at the moment?
+    ---@return boolean
     function ScreenplaySystem:isActive()
         return udg_screenplayActive
-    end
-
-    -- assign the unit to an actor, optionally with custom name
-    function ScreenplaySystem.actor:assign(unit, customName)
-        self.unit = unit
-        if customName then
-            self.name = customName
-        else
-            self.name = GetUnitName(unit)
-        end
-    end
-
-    -- if you don't want to create unit, you can also assign unit type and player to an actor, optionally with custom name
-    -- of course, with such actors camera panning, unit flashes and animations are not available
-    function ScreenplaySystem.actor:assignByType(unitType, player, customName)
-        self.unitType = unitType
-        self.player = player
-        if customName then
-            self.name = customName
-        else
-            self.name = GetObjectName(unitType)
-        end
     end
 
     local function speechIndicator(unit)
@@ -682,23 +648,21 @@ do
 
     -- after a speech item completes, see what needs to happen next (load next item or close, etc.)
     function ScreenplaySystem.chain:playNext()
-        SimpleUtils.debugFunc(function()
-            printDebug("playNext: currentIndex: " .. tostring(ScreenplaySystem.currentIndex))
-            local fadeOutDuration
-            if ScreenplaySystem:currentItem() == nil then
-                fadeOutDuration = 0
-            else
-                fadeOutDuration = ScreenplaySystem:currentItem().fadeOutDuration
-            end
-            if fadeOutDuration > 0 then
-                SimpleUtils.fadeOut(fadeOutDuration)
-                ScreenplaySystem.fadeoutTimer = SimpleUtils.timed(fadeOutDuration * 1.2, function()
-                    self:moveAndPlayNextInternal()
-                end)
-            else
+        printDebug("playNext: currentIndex: " .. tostring(ScreenplaySystem.currentIndex))
+        local fadeOutDuration
+        if ScreenplaySystem:currentItem() == nil then
+            fadeOutDuration = 0
+        else
+            fadeOutDuration = ScreenplaySystem:currentItem().fadeOutDuration
+        end
+        if fadeOutDuration > 0 then
+            SimpleUtils.fadeOut(fadeOutDuration)
+            ScreenplaySystem.fadeoutTimer = SimpleUtils.timed(fadeOutDuration * 1.2, function()
                 self:moveAndPlayNextInternal()
-            end
-        end, "playNext")
+            end)
+        else
+            self:moveAndPlayNextInternal()
+        end
     end
 
     function ScreenplaySystem.chain:moveAndPlayNextInternal()
@@ -859,6 +823,9 @@ do
                 [2] = ...
             })
     ]]
+    ---buildFromObject
+    ---@param buildFrom array of ScreenplaySystem.item
+    ---@return ScreenplaySystem.chain
     function ScreenplaySystem.chain:buildFromObject(buildFrom)
         assert(buildFrom and buildFrom[1], "error: ScreenplaySystem.chain:buildFromObject is missing an index-value table argument.")
         local newChain = ScreenplaySystem.chain:new()
@@ -983,4 +950,7 @@ do
         return index > 0 and index <= SimpleUtils.tableLength(self)
     end
 
+    onInit(function()
+        ScreenplaySystem:init()
+    end)
 end

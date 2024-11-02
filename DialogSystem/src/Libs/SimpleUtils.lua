@@ -69,13 +69,10 @@ end
 
 function SimpleUtils.timed(dur, func)
     local tmr = CreateTimer()
-    SimpleUtils.debugFunc(function()
-        TimerStart(tmr, dur, false, function()
-            func()
-            SimpleUtils.releaseTimer(tmr)
-        end)
-        return tmr
-    end, 'SimpleUtilsTimed')
+    TimerStart(tmr, dur, false, function()
+        func()
+        SimpleUtils.releaseTimer(tmr)
+    end)
     return tmr;
 end
 
@@ -85,23 +82,20 @@ end
 
 function SimpleUtils.timedRepeat(dur, count, func)
     local tmr = CreateTimer()
-    SimpleUtils.debugFunc(function()
-        local t, c = count, 0
-        if t == nil then
-            TimerStart(tmr, dur, true, function()
-                func(tmr)
-            end)
-        else
-            TimerStart(tmr, dur, true, function()
-                func(tmr)
-                c = c + 1
-                if c >= t then
-                    SimpleUtils.releaseTimer(tmr)
-                end
-            end)
-        end
-        return tmr
-    end, 'SimpleUtilsTimedRepeat')
+    local t, c = count, 0
+    if t == nil then
+        TimerStart(tmr, dur, true, function()
+            func(tmr)
+        end)
+    else
+        TimerStart(tmr, dur, true, function()
+            func(tmr)
+            c = c + 1
+            if c >= t then
+                SimpleUtils.releaseTimer(tmr)
+            end
+        end)
+    end
     return tmr;
 end
 
@@ -160,7 +154,7 @@ function SimpleUtils.tableLength(t)
 end
 
 function SimpleUtils.ifElse(condition, onTrue, onFalse)
-    if condition then
+    if condition == true then
         return onTrue
     else
         return onFalse
@@ -202,30 +196,28 @@ function SimpleUtils.printToString(label, o)
 end
 
 function SimpleUtils.getRandomNumbers(min, max, count)
-    return SimpleUtils.debugFunc(function()
-        local rangeLength = max - min + 1
-        --print("rangeLength: " .. rangeLength)
-        if rangeLength < count then
-            print("Invalid args for SimpleUtils.getRandomNumbers: " .. tostring(min) .. " > " .. tostring(max))
-            return {}
-        end
-        local range = {}
-        for i = min, max do
-            table.insert(range, i)
-            --print("range insert " .. tostring(i))
-        end
+    local rangeLength = max - min + 1
+    --print("rangeLength: " .. rangeLength)
+    if rangeLength < count then
+        print("Invalid args for SimpleUtils.getRandomNumbers: " .. tostring(min) .. " > " .. tostring(max))
+        return {}
+    end
+    local range = {}
+    for i = min, max do
+        table.insert(range, i)
+        --print("range insert " .. tostring(i))
+    end
 
-        local output = {}
-        for _ = 0, count - 1 do
-            local nextNumberIndex = math.random(1, rangeLength)
-            --print("nextNumberIndex " .. tostring(nextNumberIndex))
-            local nextNumber = table.remove(range, nextNumberIndex)
-            --print("removed nextNumber " .. tostring(nextNumber))
-            table.insert(output, nextNumber)
-            rangeLength = rangeLength - 1
-        end
-        return output
-    end, "SimpleUtils.getRandomNumbers(min=" .. tostring(min) .. ", max=" .. tostring(max) .. ", count=" .. tostring(count) .. ")")
+    local output = {}
+    for _ = 0, count - 1 do
+        local nextNumberIndex = math.random(1, rangeLength)
+        --print("nextNumberIndex " .. tostring(nextNumberIndex))
+        local nextNumber = table.remove(range, nextNumberIndex)
+        --print("removed nextNumber " .. tostring(nextNumber))
+        table.insert(output, nextNumber)
+        rangeLength = rangeLength - 1
+    end
+    return output
 end
 
 function SimpleUtils.releaseTimer(whichTimer)
