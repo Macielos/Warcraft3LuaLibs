@@ -49,13 +49,30 @@ function FrameUtils.fadeFrame(fade, frame, duration)
     end
 end
 
+local function getOffset(offset)
+    if offset == 0 then
+        return ""
+    end
+    return string.rep("-", 2 * offset)
+end
 
-function FrameUtils.printFrameStructure(frame)
-    print("STRUCTURE OF FRAME " .. BlzFrameGetName(frame) .. ": ")
+function FrameUtils.printFrameStructure(frame, maxDepth, offset)
+    if offset == nil then
+        offset = 0
+    end
     local childrenCount = BlzFrameGetChildrenCount(frame)
-    print("  CHILDREN COUNT: " .. tostring(childrenCount))
-    for i = 0, childrenCount do
-        print("  CHILD " .. tostring(i) .. ": " .. BlzFrameGetName(BlzFrameGetChild(frame, i)))
+    local visible = BlzFrameIsVisible(frame)
+    if visible then
+        print(getOffset(offset) .. "FRAME " .. BlzFrameGetName(frame) .. ": [" .. tostring(childrenCount) .. "]")
+    end
+    if childrenCount > 0 then
+        if offset < maxDepth then
+            for i = 0, childrenCount - 1 do
+                FrameUtils.printFrameStructure(BlzFrameGetChild(frame, i), maxDepth, offset + 1)
+            end
+        else
+            print(getOffset(offset + 1) .. "[...]")
+        end
     end
 end
 
@@ -67,9 +84,19 @@ function FrameUtils.getChildByName(parent, expectedChildName)
         if childName == expectedChildName then
             return child
         end
+        SimpleUtils.printWarn('No child ' .. expectedChildName .. ' found for parent')
     end
 end
 
+function FrameUtils.safeFrameGetChild(parent, childIndex)
+    local childrenCount = BlzFrameGetChildrenCount(parent)
+    if childIndex < 0 or childIndex >= childrenCount then
+        local name = BlzFrameGetName(parent)
+        SimpleUtils.printWarn("Attempt to get " .. tostring(childIndex) .. ". child, but frame " .. name .. " only has " .. tostring(childrenCount))
+        return nil
+    end
+    return BlzFrameGetChild(parent, childIndex)
+end
 
 function FrameUtils.fixFocus(fh)
     BlzFrameSetEnable(fh, false)
