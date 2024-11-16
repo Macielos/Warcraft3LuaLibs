@@ -20,6 +20,13 @@ function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
     local cameraFromY = CameraSetupGetDestPositionY(cameraFrom)
     local cameraFromDistance = CameraSetupGetField(cameraFrom, CAMERA_FIELD_TARGET_DISTANCE)
 
+    local cameraToX = CameraSetupGetDestPositionX(cameraTo)
+    local cameraToY = CameraSetupGetDestPositionY(cameraTo)
+    if(cameraToX == cameraFromX and cameraFromY == cameraToY) then
+        --ugly workaround for blizz camera getting unlocked when positions from == to
+        cameraFromY = cameraFromY - 5.0;
+    end
+
     SetCameraPosition(cameraFromX, cameraFromY)
     SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, cameraFromDistance, 0.0)
 
@@ -35,8 +42,8 @@ function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
             CameraSetupApplyForceDuration(cameraTo, true, 9999)
             SimpleUtils.releaseTimer(timer)
         else
-            local interpolatedX = ScreenplayUtils.interpolate(CameraSetupGetDestPositionX(cameraFrom), CameraSetupGetDestPositionX(cameraTo), (durationInt - durationLeft) / durationInt)
-            local interpolatedY = ScreenplayUtils.interpolate(CameraSetupGetDestPositionY(cameraFrom), CameraSetupGetDestPositionY(cameraTo), (durationInt - durationLeft) / durationInt)
+            local interpolatedX = ScreenplayUtils.interpolate(cameraFromX, cameraToX, (durationInt - durationLeft) / durationInt)
+            local interpolatedY = ScreenplayUtils.interpolate(cameraFromY, cameraToY, (durationInt - durationLeft) / durationInt)
             local interpolatedDistance = ScreenplayUtils.interpolate(CameraSetupGetField(cameraFrom, CAMERA_FIELD_TARGET_DISTANCE), CameraSetupGetField(cameraTo, CAMERA_FIELD_TARGET_DISTANCE), (durationInt - durationLeft) / durationInt)
             local sceneCameraX = GetCameraTargetPositionX()
             local sceneCameraY = GetCameraTargetPositionY()
