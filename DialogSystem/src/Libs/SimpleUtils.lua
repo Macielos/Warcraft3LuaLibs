@@ -3,18 +3,19 @@ SimpleUtils.debug = false
 SimpleUtils.debugTime = false
 
 function SimpleUtils.debugFunc(func, name)
-    local name = name or ""
-    local result
-    local passed, data = pcall(function()
-        result = func()
-        return "func " .. name .. " passed"
-    end)
-    if not passed then
-        print(name, passed, data)
-    end
-    passed = nil
-    data = nil
-    return result
+    return func()
+    --local name = name or ""
+    --local result
+    --local passed, data = pcall(function()
+    --    result = func()
+    --    return "func " .. name .. " passed"
+    --end)
+    --if not passed then
+    --    print(name, passed, data)
+    --end
+    --passed = nil
+    --data = nil
+    --return result
 end
 
 function SimpleUtils.printTime(since, name)
@@ -32,17 +33,17 @@ end
 function SimpleUtils.debugFuncTimed(func, name)
     local start = os.time()
     local name = name or ""
-    local result
-    local passed, data = pcall(function()
-        result = func()
-        SimpleUtils.printTime(start, name)
-        return "func " .. name .. " passed"
-    end)
-    if not passed then
-        print(name, passed, data)
-    end
-    passed = nil
-    data = nil
+    local result = func()
+    --local passed, data = pcall(function()
+    --    result = func()
+    --    SimpleUtils.printTime(start, name)
+    --    return "func " .. name .. " passed"
+    --end)
+    --if not passed then
+    --    print(name, passed, data)
+    --end
+    --passed = nil
+    --data = nil
     SimpleUtils.printTime(start, name)
     return result
 end
@@ -192,7 +193,7 @@ function SimpleUtils.toString(o, prefix)
 end
 
 function SimpleUtils.printToString(label, o)
-    print(label .. ": " .. SimpleUtils.toString(o, " "))
+    print(label .. ": " .. SimpleUtils.valueToString(o, " "))
 end
 
 function SimpleUtils.getRandomNumbers(min, max, count)
@@ -227,4 +228,16 @@ end
 
 function SimpleUtils.printWarn(msg)
     print("[WARN] " .. msg)
+end
+
+function SimpleUtils.split(string, separator)
+    if separator == nil then
+        separator = "%%s"
+    end
+    local t = {}
+    for str in string.gmatch(string, "([^".. separator .."]+)") do
+        table.insert(t, str)
+    end
+    SimpleUtils.printToString("split", t)
+    return t
 end

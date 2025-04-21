@@ -9,14 +9,15 @@ do
     ---@param unit unit
     ---@param customName string
     ---@return ScreenplaySystem.actor
-    function ScreenplayFactory:createActor(unit, customName)
-        local self = ScreenplaySystem.actor:new()
-        self.unit = unit
+    function ScreenplayFactory.createActor(unit, customName)
+        local actor = ScreenplaySystem.actor:new()
+        actor.unit = unit
         if customName then
-            self.name = customName
+            actor.name = customName
         else
-            self.name = GetUnitName(unit)
+            actor.name = GetUnitName(unit)
         end
+        return actor
     end
 
     --- Alternatively if you don't want to create a unit, you can also assign unit type and player to an actor, optionally with custom name
@@ -25,15 +26,16 @@ do
     ---@param player player
     ---@param customName string
     ---@return ScreenplaySystem.actor
-    function ScreenplayFactory:createActorFromType(unitType, player, customName)
-        local self = ScreenplaySystem.actor:new()
-        self.unitType = unitType
-        self.player = player
+    function ScreenplayFactory.createActorFromType(unitType, player, customName)
+        local actor = ScreenplaySystem.actor:new()
+        actor.unitType = unitType
+        actor.player = player
         if customName then
-            self.name = customName
+            actor.name = customName
         else
-            self.name = GetObjectName(unitType)
+            actor.name = GetObjectName(unitType)
         end
+        return actor
     end
 
     local function printDebug(msg)
@@ -53,4 +55,12 @@ do
         ScreenplayFactory.screenplayBuilders[name] = screenplayBuilderFunction
     end
 
+    --- Stores a screenplay builder function under a given name. The function will be called when starting a scene by name. A simpler variant of function above that accepts a raw message chain
+    ---@param name string
+    ---@param screenplayBuilderFunction function
+    function ScreenplayFactory:saveBuilderForMessageChain(name, messageChainFunction)
+        return self:saveBuilder(name, function()
+            return ScreenplaySystem.chain:buildFromObject(messageChainFunction())
+        end)
+    end
 end

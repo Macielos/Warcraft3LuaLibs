@@ -1,10 +1,10 @@
-ScreenplayFactory:saveBuilder("elf", function()
+ScreenplayFactory:saveBuilderForMessageChain("elf", function()
     --an example of an actor without a unit
     local narratorUnitType = FourCC('nmed')
     local narratorPlayer = Player(1)
     local actorNarrator = ScreenplayFactory.createActorFromType(narratorUnitType, narratorPlayer, "Narrator")
 
-    return ScreenplaySystem.chain:buildFromObject({
+    return {
         [1] = {
             text = "Soon, in his epic quest our mighty hero stood upon a High Elven sanctuary...",
             actor = actorNarrator,
@@ -44,5 +44,5 @@ ScreenplayFactory:saveBuilder("elf", function()
                 ScreenplayUtils.interpolateCamera(gg_cam_elf02a, gg_cam_elf02b, 30)
             end
         },
-    })
+    }
 end)

@@ -1,10 +1,10 @@
-ScreenplayFactory:saveBuilder('ghost', function()
+ScreenplayFactory:saveBuilderForMessageChain('ghost', function()
     --an example of an actor without a unit
     local ghostUnitType = FourCC('ngh1')
     local ghostPlayer = Player(2)
     local actorGhost = ScreenplayFactory.createActorFromType(ghostUnitType, ghostPlayer, "Forest Ghost")
 
-    return ScreenplaySystem.chain:buildFromObject({
+    return {
         [1] = {
             text = "Who dares disrupt my slumber!?",
             actor = actorGhost,
@@ -21,5 +21,5 @@ ScreenplayFactory:saveBuilder('ghost', function()
             text = "Screw this, I'm out.",
             actor = actorFootman,
         },
-    })
+    }
 end)

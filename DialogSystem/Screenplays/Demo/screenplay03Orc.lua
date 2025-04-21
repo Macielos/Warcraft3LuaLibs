@@ -1,9 +1,9 @@
-ScreenplayFactory:saveBuilder('orc', function()
+ScreenplayFactory:saveBuilderForMessageChain('orc', function()
     local sounds = {}
     sounds.grunt01      = gg_snd_GruntWhat2
     sounds.footman01    = gg_snd_FootmanWarcry1
 
-    return ScreenplaySystem.chain:buildFromObject({
+    return {
         [1] = {
             text = "|cffff0000Hey, orc!|r",
             actor = actorFootman,
@@ -152,5 +152,5 @@ ScreenplayFactory:saveBuilder('orc', function()
             text = "Yeah, yeah, whatever.",
             actor = actorGrunt,
         },
-    })
+    }
 end)

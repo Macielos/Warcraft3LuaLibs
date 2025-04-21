@@ -1,5 +1,5 @@
-ScreenplayFactory:saveBuilder("dwarf", function()
-    return ScreenplaySystem.chain:buildFromObject({
+ScreenplayFactory:saveBuilderForMessageChain("dwarf", function()
+    return {
         [1] = {
             text = "Hey, lad. Good time drinkin' with ya! Until the next time!",
             actor = actorDwarf,
@@ -8,5 +8,5 @@ ScreenplayFactory:saveBuilder("dwarf", function()
             text = "Yeeeeah, s-s-s-sure thing, pal!",
             actor = actorFootman,
         },
-    })
+    }
 end)

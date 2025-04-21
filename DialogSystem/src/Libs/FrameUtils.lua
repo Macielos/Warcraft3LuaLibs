@@ -78,14 +78,14 @@ end
 
 function FrameUtils.getChildByName(parent, expectedChildName)
     local childrenCount = BlzFrameGetChildrenCount(parent)
-    for i = 0, childrenCount do
+    for i = 0, childrenCount - 1 do
         local child = BlzFrameGetChild(parent, i)
         local childName = BlzFrameGetName(child)
         if childName == expectedChildName then
             return child
         end
-        SimpleUtils.printWarn('No child ' .. expectedChildName .. ' found for parent')
     end
+    SimpleUtils.printWarn('No child ' .. expectedChildName .. ' found for parent')
 end
 
 function FrameUtils.safeFrameGetChild(parent, childIndex)
