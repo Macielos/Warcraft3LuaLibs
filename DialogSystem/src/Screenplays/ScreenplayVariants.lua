@@ -110,8 +110,6 @@ ScreenplayVariants = {
     --[[
         A simple in-game dialog that's not supposed to pause or disrupt the gameplay. Not meant for long dialogs, choices,
         etc., just quick comments or interactions in combat or when entering some new region.
-        TODO: I need to make this dialog window unclickable. If I don't find a way, I'll propably rework it not to use
-        dialog window at all, just display the text like normal Send Transmission trigger action.
     ]]
     inGame = {
         anchorX = 0.4,
