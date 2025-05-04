@@ -1,3 +1,4 @@
+if Debug then Debug.beginFile "FrameUtils" end
 FrameUtils = {
     FRAME_POINTS = { -- shorthand 'FRAMEPOINT' for terser code.
         tl = FRAMEPOINT_TOPLEFT,
@@ -64,6 +65,8 @@ function FrameUtils.printFrameStructure(frame, maxDepth, offset)
     local visible = BlzFrameIsVisible(frame)
     if visible then
         print(getOffset(offset) .. "FRAME " .. BlzFrameGetName(frame) .. ": [" .. tostring(childrenCount) .. "]")
+    else
+        print(getOffset(offset) .. "[INVISIBLE] FRAME " .. BlzFrameGetName(frame) .. ": [" .. tostring(childrenCount) .. "]")
     end
     if childrenCount > 0 then
         if offset < maxDepth then
@@ -103,3 +106,4 @@ function FrameUtils.fixFocus(fh)
     BlzFrameSetEnable(fh, true)
 end
 
+if Debug then Debug.endFile() end

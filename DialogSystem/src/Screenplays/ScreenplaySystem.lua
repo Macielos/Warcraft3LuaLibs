@@ -1,3 +1,4 @@
+if Debug then Debug.beginFile "ScreenplaySystem" end
 --[[
     Important API functions you may need - see their documentation below
         ScreenplaySystem.chain:buildFromObject({
@@ -954,3 +955,4 @@ do
         ScreenplaySystem:init()
     end)
 end
+if Debug then Debug.endFile() end

@@ -1,3 +1,4 @@
+if Debug then Debug.beginFile "ScreenplayUtils" end
 ScreenplayUtils = {} -- utility class with functions you can use in your screenplays
 ScreenplayUtils.debug = false
 
@@ -94,3 +95,4 @@ function ScreenplayUtils.getCurrentItemDuration()
     end
     return currentItem:getDuration()
 end
+if Debug then Debug.endFile() end

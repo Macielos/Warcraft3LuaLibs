@@ -1,3 +1,4 @@
+if Debug then Debug.beginFile "ScreenplayFactory" end
 ScreenplayFactory = {
     screenplayBuilders = {}
 }
@@ -64,3 +65,4 @@ do
         end)
     end
 end
+if Debug then Debug.endFile() end

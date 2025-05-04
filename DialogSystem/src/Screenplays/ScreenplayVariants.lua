@@ -1,3 +1,4 @@
+if Debug then Debug.beginFile "ScreenplayVariants" end
 --[[
     Map of screenplay configuration variants. Feel free to edit and add your own.
 ]]
@@ -133,3 +134,4 @@ ScreenplayVariants = {
         interruptExisting = false,
     }
 }
+if Debug then Debug.endFile() end

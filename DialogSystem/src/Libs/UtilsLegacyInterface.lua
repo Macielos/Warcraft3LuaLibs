@@ -1,3 +1,4 @@
+if Debug then Debug.beginFile "UtilsLegacyInterface" end
 utils = {}
 function utils.debugfunc(func, name)
     return SimpleUtils.debugFunc(func, name)
@@ -34,3 +35,4 @@ end
 function utils.printDupa()
     print("dupa")
 end
+if Debug then Debug.endFile() end

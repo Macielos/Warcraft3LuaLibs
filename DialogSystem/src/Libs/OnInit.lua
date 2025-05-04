@@ -1,3 +1,4 @@
+if Debug then Debug.beginFile "OnInit" end
 do
     local funcs = {}
 
@@ -18,3 +19,4 @@ do
         funcs = nil
     end
 end
+if Debug then Debug.endFile() end

@@ -1,21 +1,10 @@
+if Debug then Debug.beginFile "SimpleUtils" end
 SimpleUtils = {}
 SimpleUtils.debug = false
 SimpleUtils.debugTime = false
 
 function SimpleUtils.debugFunc(func, name)
     return func()
-    --local name = name or ""
-    --local result
-    --local passed, data = pcall(function()
-    --    result = func()
-    --    return "func " .. name .. " passed"
-    --end)
-    --if not passed then
-    --    print(name, passed, data)
-    --end
-    --passed = nil
-    --data = nil
-    --return result
 end
 
 function SimpleUtils.printTime(since, name)
@@ -34,16 +23,6 @@ function SimpleUtils.debugFuncTimed(func, name)
     local start = os.time()
     local name = name or ""
     local result = func()
-    --local passed, data = pcall(function()
-    --    result = func()
-    --    SimpleUtils.printTime(start, name)
-    --    return "func " .. name .. " passed"
-    --end)
-    --if not passed then
-    --    print(name, passed, data)
-    --end
-    --passed = nil
-    --data = nil
     SimpleUtils.printTime(start, name)
     return result
 end
@@ -185,8 +164,9 @@ end
 function SimpleUtils.toString(o, prefix)
     local s = "{\n"
     for key, value in pairs(o) do
+        local keyString = SimpleUtils.valueToString(key, '')
         local valueString = SimpleUtils.valueToString(value, prefix)
-        s = s .. prefix .. "\"" .. key .. "\": \"" .. valueString .. "\",\n"
+        s = s .. prefix .. "\"" .. keyString .. "\": \"" .. valueString .. "\",\n"
     end
     s = s .. "\n}\n"
     return s
@@ -238,6 +218,7 @@ function SimpleUtils.split(string, separator)
     for str in string.gmatch(string, "([^".. separator .."]+)") do
         table.insert(t, str)
     end
-    SimpleUtils.printToString("split", t)
+    --SimpleUtils.printToString("split", t)
     return t
 end
+if Debug then Debug.endFile() end

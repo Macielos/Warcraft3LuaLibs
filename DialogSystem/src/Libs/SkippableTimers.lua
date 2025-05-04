@@ -1,3 +1,4 @@
+if Debug then Debug.beginFile "SkippableTimers" end
 SkippableTimers = {
     skippableTimers = {}
 }
@@ -14,3 +15,4 @@ function SkippableTimers:skip()
     end
     self.skippableTimers = {}
 end
+if Debug then Debug.endFile() end
