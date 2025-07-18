@@ -58,6 +58,7 @@ ScreenplayVariants = {
         skippable = true,
         rewindable = true,
         interruptExisting = true,
+        enqueueIfExisting = false
     },
     --[[
         A modification of above that requires pressing right arrow to move to the next line.
@@ -81,6 +82,7 @@ ScreenplayVariants = {
         skippable = true,
         rewindable = true,
         interruptExisting = true,
+        enqueueIfExisting = false
     },
     --[[
         A small dialog window that pauses the game and keeps the camera pointing at a currently speaking actor. Good for
@@ -106,7 +108,8 @@ ScreenplayVariants = {
         speed = 0.04,
         skippable = true,
         rewindable = true,
-        interruptExisting = false,
+        interruptExisting = true,
+        enqueueIfExisting = false
     },
     --[[
         A simple in-game dialog that's not supposed to pause or disrupt the gameplay. Not meant for long dialogs, choices,
@@ -132,6 +135,7 @@ ScreenplayVariants = {
         skippable = false,
         rewindable = false,
         interruptExisting = false,
+        enqueueIfExisting = true
     }
 }
 if Debug then Debug.endFile() end

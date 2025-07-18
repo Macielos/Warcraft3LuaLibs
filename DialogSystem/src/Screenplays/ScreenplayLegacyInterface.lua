@@ -11,8 +11,8 @@ function speak:currentItem()
     return ScreenplaySystem:currentItem()
 end
 
-function speak:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting)
-    ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting)
+function speak:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting, enqueueIfExisting)
+    ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting, enqueueIfExisting)
 end
 
 function speak.chain:buildFromObject(o)

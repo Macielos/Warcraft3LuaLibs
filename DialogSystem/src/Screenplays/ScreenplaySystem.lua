@@ -43,6 +43,8 @@ ScreenplaySystem = {   -- main dialogue class, configuration options can be foun
     delayTimer = nil,
     fadeoutTimer = nil,
     lastActorUnitTypeSpeaking = nil,
+
+    sceneQueue = {}
 }
 
 ScreenplaySystem.item = {   -- sub class for dialogue strings and how they play.
@@ -63,7 +65,6 @@ ScreenplaySystem.item = {   -- sub class for dialogue strings and how they play.
     fadeOutDuration = 0, -- duration of fade out to black after displaying this item, remember to add 'fadeInDuration' to the following item or fade in by script/trigger
     skipTimers = false, --if true, upon skipping this message timed actions added via SimpleUtils.skippable() will be cancelled. Set to true for messages that begin a new shot, with fade, new camera etc.
     stopOnRewind = false, --if true, rewinding a cutscene (ESC) will stop at this message
-    onRewindGoTo = 0, --used to pick new message when skipping choices
 }
 
 ScreenplaySystem.itemAction = {
@@ -77,6 +78,7 @@ ScreenplaySystem.choice = {
     visible = true, -- whether this choice should be initially visible. Can be modified in runtime to dynamically show/hide dialog options
     visibleFunc = nil, -- additional visibility mechanism, optional function returning boolean whether this choice should be visible, note that it should not modify any state as it is called multiple times
     chosen = false, -- set by the script after selecting a choice. Can be used for conditions to show other dialog options
+    chooseOnRewind = false --set to true on one of your choices to pick them automatically when rewinding dialog
 }
 
 ScreenplaySystem.actor = {   -- sub class for storing actor settings.
@@ -84,6 +86,12 @@ ScreenplaySystem.actor = {   -- sub class for storing actor settings.
     name = nil, -- the name of the actor (defaults to unit name).
 }
 ScreenplaySystem.chain = {}  -- sub class for chaining speech items in order.
+
+ScreenplaySystem.enqueuedScene = {
+    name = nil,
+    variant = nil,
+    onSceneEndTrigger = nil
+}
 
 do
     local function printDebug(msg)
@@ -246,6 +254,26 @@ do
         return builder()
     end
 
+    local function enqueueScene(name, variant, onSceneEndTrigger)
+        table.insert(ScreenplaySystem.sceneQueue, {
+            name = name,
+            variant = variant,
+            onSceneEndTrigger = onSceneEndTrigger
+        })
+        printDebug("Scene enqueued: " .. name)
+    end
+
+    local function runEnqueuedScene()
+        if ScreenplaySystem.sceneQueue[1] ~= nil then
+            local scene = table.remove(ScreenplaySystem.sceneQueue, 1)
+            ScreenplaySystem:startScene(buildScreenplay(scene.name), scene.variant, scene.onSceneEndTrigger, false)
+        end
+    end
+
+    local function clearSceneQueue()
+        ScreenplaySystem.sceneQueue = {}
+    end
+
     ---startSceneByName
     --- start a scene by name previously saved using ScreenplayFactory.saveBuilder() function, display it using a given
     --- variant from ScreenplayVariants. Optionally pass trigger to run on scene end and a bool flag whether it should
@@ -254,16 +282,22 @@ do
     ---@param variant string
     ---@param onSceneEndTrigger trigger
     ---@param interruptExisting boolean
-    function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting)
+    ---@param enqueueIfExisting boolean
+    function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting, enqueueIfExisting)
+        if self:isActive() and (enqueueIfExisting == true or ScreenplayVariants[variant].enqueueIfExisting == true) then
+            enqueueScene(name, variant, onSceneEndTrigger)
+            return
+        end
         ScreenplaySystem:startScene(buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
     end
 
     function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interruptExisting)
         if self:isActive() then
-            if interruptExisting == true or variant.interruptExisting == true then
+            if interruptExisting == true or ScreenplayVariants[variant].interruptExisting == true then
                 printDebug("interrupting existing scene...")
                 clear()
                 self:endScene(true)
+                clearSceneQueue()
             else
                 printDebug("existing scene found, aborting...")
                 return
@@ -365,6 +399,10 @@ do
         if self.onSceneEndTrigger then
             ConditionalTriggerExecute(self.onSceneEndTrigger)
         end
+
+        if ScreenplaySystem.sceneQueue[1] ~= nil then
+            SimpleUtils.timed(1.0, runEnqueuedScene)
+        end
     end
 
     -- function to run when the "next" is clicked.
@@ -436,7 +474,13 @@ do
         if self.currentChoices then
             if isValidChoice() then
                 printDebug("currentChoices:onChoice() - valid choice")
-                self.currentChoices[self.currentChoiceIndex]:onChoice()
+                if self.currentChoices[self.currentChoiceIndex].onChoice then
+                    self.currentChoices[self.currentChoiceIndex]:onChoice()
+                end
+                if self.currentChoices[self.currentChoiceIndex].onChoiceGoTo then
+                    ScreenplaySystem:goTo(self.currentChoices[self.currentChoiceIndex].onChoiceGoTo)
+                end
+
                 self.currentChoices[self.currentChoiceIndex].chosen = true
                 self.currentChoices = nil
                 self.currentChoiceIndex = 0
@@ -767,13 +811,24 @@ do
         end
     end
 
+    function ScreenplaySystem.chain:getChoiceForRewind(index)
+        if self[index].choices then
+            for i, choice in ipairs(self[index].choices) do
+                if choice.chooseOnRewind == true and choice.onChoiceGoTo ~= nil then
+                    return i
+                end
+            end
+        end
+        return nil
+    end
+
     function ScreenplaySystem.chain:isCurrentChoiceRewindable(index)
-        return not (self[index].onRewindGoTo == nil or self[index].onRewindGoTo == 0)
+        return self:getChoiceForRewind(index) ~= nil
     end
 
     function ScreenplaySystem.chain:getNextIndexForRewind(index)
-        if self[index].choices ~= nil and self:isCurrentChoiceRewindable(index) then
-            return self[index].onRewindGoTo
+        if self:isCurrentChoiceRewindable(index) then
+            return self[index].choices[self:getChoiceForRewind(index)].onChoiceGoTo
         end
         return self:getNextIndexForIndex(index)
     end
@@ -895,9 +950,6 @@ do
             if not (item.stopOnRewind == nil) then
                 newChain[itemIndex].stopOnRewind = item.stopOnRewind
             end
-            if item.onRewindGoTo ~= nil and item.onRewindGoTo > 0 then
-                newChain[itemIndex].onRewindGoTo = item.onRewindGoTo
-            end
             if item.choices then
                 newChain[itemIndex].choices = {}
                 for choiceIndex, choiceBuildFrom in pairs(item.choices) do
@@ -905,6 +957,8 @@ do
                     local choice = ScreenplaySystem.choice:new()
                     choice.text = choiceBuildFrom.text
                     choice.onChoice = choiceBuildFrom.onChoice
+                    choice.onChoiceGoTo = choiceBuildFrom.onChoiceGoTo
+                    choice.chooseOnRewind = choiceBuildFrom.chooseOnRewind
                     if not (choiceBuildFrom.visible == nil) then
                         choice.visible = choiceBuildFrom.visible
                     else
