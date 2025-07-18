@@ -2,6 +2,7 @@ if Debug then Debug.beginFile "SimpleUtils" end
 SimpleUtils = {}
 SimpleUtils.debug = false
 SimpleUtils.debugTime = false
+SimpleUtils.timedCalls = {}
 
 function SimpleUtils.debugFunc(func, name)
     return func()

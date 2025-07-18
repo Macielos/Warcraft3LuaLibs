@@ -91,6 +91,8 @@ function FrameUtils.getChildByName(parent, expectedChildName)
     SimpleUtils.printWarn('No child ' .. expectedChildName .. ' found for parent')
 end
 
+--BlzFrameGetChild(index) for index outside of the parent frame's child array size crashes the game.
+--Added this function following hours-long debugging of a crash introduced by a patch in #$*$ Reforged
 function FrameUtils.safeFrameGetChild(parent, childIndex)
     local childrenCount = BlzFrameGetChildrenCount(parent)
     if childIndex < 0 or childIndex >= childrenCount then
