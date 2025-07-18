@@ -284,7 +284,7 @@ do
     ---@param interruptExisting boolean
     ---@param enqueueIfExisting boolean
     function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting, enqueueIfExisting)
-        if self:isActive() and (enqueueIfExisting == true or ScreenplayVariants[variant].enqueueIfExisting == true) then
+        if self:isActive() and (enqueueIfExisting == true or (enqueueIfExisting == nil and ScreenplayVariants[variant].enqueueIfExisting == true)) then
             enqueueScene(name, variant, onSceneEndTrigger)
             return
         end
@@ -293,7 +293,7 @@ do
 
     function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interruptExisting)
         if self:isActive() then
-            if interruptExisting == true or ScreenplayVariants[variant].interruptExisting == true then
+            if interruptExisting == true or (interruptExisting == nil and ScreenplayVariants[variant].interruptExisting == true) then
                 printDebug("interrupting existing scene...")
                 clear()
                 self:endScene(true)

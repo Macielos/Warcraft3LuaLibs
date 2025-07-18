@@ -1,7 +1,7 @@
 ScreenplayFactory:saveBuilderForMessageChain('orc', function()
     local sounds = {}
-    sounds.grunt01      = gg_snd_GruntWhat2
-    sounds.footman01    = gg_snd_FootmanWarcry1
+    sounds.grunt01 = gg_snd_GruntWhat2
+    sounds.footman01 = gg_snd_FootmanWarcry1
 
     return {
         [1] = {
@@ -21,36 +21,32 @@ ScreenplayFactory:saveBuilderForMessageChain('orc', function()
                     text = "I will fuck you up!",
                     onChoice = function()
                         ScreenplaySystem:currentItem().choices[1].visible = false
-                        ScreenplaySystem:goTo(4)
-                    end
+                    end,
+                    onChoiceGoTo = 4
                 },
                 [2] = {
                     text = "Show me your wares.",
-                    onChoice = function()
-                        ScreenplaySystem:goTo(7)
-                    end
+                    onChoiceGoTo = 7
                 },
                 [3] = {
                     text = "Where can I get drunk here?",
                     onChoice = function()
                         ScreenplaySystem:currentItem().choices[3].visible = false
                         ScreenplaySystem:currentItem().choices[4].visible = true
-                        ScreenplaySystem:goTo(9)
-                    end
+                    end,
+                    onChoiceGoTo = 9
                 },
                 [4] = {
                     text = "You sure you have no alcohol left?",
                     visible = false,
                     onChoice = function()
                         ScreenplaySystem:currentItem().choices[4].visible = false
-                        ScreenplaySystem:goTo(11)
-                    end
+                    end,
+                    onChoiceGoTo = 11
                 },
                 [5] = {
                     text = "I have to go.",
-                    onChoice = function()
-                        ScreenplaySystem:goTo(19)
-                    end
+                    onChoiceGoTo = 19
                 }
             }
         },
@@ -74,7 +70,8 @@ ScreenplayFactory:saveBuilderForMessageChain('orc', function()
             actor = actorFootman,
             thenGoToFunc = function()
                 if sceneOrcAlreadyAskedAboutWares == true
-                then return 18
+                then
+                    return 18
                 else
                     sceneOrcAlreadyAskedAboutWares = true
                     return 8
@@ -108,15 +105,11 @@ ScreenplayFactory:saveBuilderForMessageChain('orc', function()
             choices = {
                 [1] = {
                     text = "I'll take you there, just gimme my beer!",
-                    onChoice = function()
-                        ScreenplaySystem:goTo(14)
-                    end
+                    onChoiceGoTo = 14
                 },
                 [2] = {
                     text = "Forget it, Horde filth!",
-                    onChoice = function()
-                        ScreenplaySystem:goTo(16)
-                    end
+                    onChoiceGoTo = 16
                 },
             }
         },
