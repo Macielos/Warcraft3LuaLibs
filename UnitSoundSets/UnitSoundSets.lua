@@ -20,6 +20,9 @@ do
      *   The extensions "mp3", "flac" and "wav" are used automatically.
      *
      *  You can have ANY number of What, Yes, Attack, Pissed etc. sounds, simply adjust the limits below (MAX_SOUNDS_XXX constants)
+     *  You can add multiple sound sets for the same unit type, they will be treated additively.
+     *  For most sound types adding order doesn't matter as they are played randomly, the only exception is Pissed
+     *  sounds which always play in the same order
      *
      * The following suffixes for sound files are supported:
      * Death sounds:
@@ -174,7 +177,13 @@ do
         return soundHandle
     end
 
-    local function addUnitSoundSetFromFilesType (unitTypeId, filePath, soundType, count, prefix, eaxSetting)
+    local function addUnitSoundSetFromFilesType (unitTypeId, filePath, soundType, count, prefix)
+        local eaxSetting
+        if soundType == SOUND_DEATH then
+            eaxSetting = EAX_SETTING_DEATH
+        else
+            eaxSetting = EAX_SETTING
+        end
         local i = 1
         while i <= count do
             local fullName = filePath .. prefix .. I2S(i)
@@ -186,33 +195,32 @@ do
         end
     end
 
-    function UnitSoundSets:addUnitSoundSet(unitTypeId, filePath)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_DEATH, MAX_SOUNDS_DEATH, "Death", EAX_SETTING_DEATH)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_WHAT, MAX_SOUNDS_WHAT, "What", EAX_SETTING)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_YES, MAX_SOUNDS_YES, "Yes", EAX_SETTING)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_YES_ATTACK, MAX_SOUNDS_ATTACK, "Attack", EAX_SETTING)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_YES_ATTACK, MAX_SOUNDS_ATTACK, "YesAttack", EAX_SETTING)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_WARCRY, MAX_SOUNDS_WARCRY, "WarCry", EAX_SETTING)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_READY, MAX_SOUNDS_READY, "Ready", EAX_SETTING)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_PISSED, MAX_SOUNDS_PISSED, "Pissed", EAX_SETTING)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_PISSED, MAX_SOUNDS_PISSED, "Hidden", EAX_SETTING)
-        addUnitSoundSetFromFilesType(unitTypeId, filePath, SOUND_PISSED, MAX_SOUNDS_PISSED, "Gag", EAX_SETTING)
+    function UnitSoundSets:addUnitSoundSet(unitTypeId, filePathPrefix)
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_DEATH, MAX_SOUNDS_DEATH, "Death")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_WHAT, MAX_SOUNDS_WHAT, "What")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES, MAX_SOUNDS_YES, "Yes")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES_ATTACK, MAX_SOUNDS_ATTACK, "Attack")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES_ATTACK, MAX_SOUNDS_ATTACK, "YesAttack")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_WARCRY, MAX_SOUNDS_WARCRY, "WarCry")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_READY, MAX_SOUNDS_READY, "Ready")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, MAX_SOUNDS_PISSED, "Pissed")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, MAX_SOUNDS_PISSED, "Hidden")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, MAX_SOUNDS_PISSED, "Gag")
     end
 
     local function addUnitAbilitySoundFromFile(unitTypeId, abilityId, filePath, index)
-        local fullName = filePath
         --UnitSoundSets.printUnitSoundDebug("Adding ability sound for unit type " .. tostring(unitTypeId) .. ", ability: " .. tostring(abilityId) .. " -> fullName: " .. fullName);
-        return unitAbilitySoundSets:add(unitTypeId, abilityId, index, createSoundFromFile(fullName, EAX_SETTING))
+        return unitAbilitySoundSets:add(unitTypeId, abilityId, index, createSoundFromFile(filePath, EAX_SETTING))
     end
 
     function UnitSoundSets:addUnitAbilitySingleSound(unitTypeId, abilityId, filePath)
         addUnitAbilitySoundFromFile(unitTypeId, abilityId, filePath, 1)
     end
 
-    function UnitSoundSets:addUnitAbilityMultipleSounds(unitTypeId, abilityId, filePath)
+    function UnitSoundSets:addUnitAbilityMultipleSounds(unitTypeId, abilityId, filePathPrefix)
         local i = 1
         while i <= MAX_SOUNDS_ABILITY do
-            if not addUnitAbilitySoundFromFile(unitTypeId, abilityId, filePath .. tostring(i), i) then
+            if not addUnitAbilitySoundFromFile(unitTypeId, abilityId, filePathPrefix .. tostring(i), i) then
                 return
             end
             i = i + 1
@@ -325,13 +333,9 @@ do
 
     local function portraitAnimation(whichPlayer, whichUnit, whichSound)
         local unitTypeId = GetUnitTypeId(whichUnit)
-        if (GetLocalPlayer() == whichPlayer) then
-            SetCinematicScene(unitTypeId, getUnitPlayerColor(whichPlayer, whichUnit), '', '', GetSoundDurationBJ(whichSound), GetSoundDurationBJ(whichSound))
-        end
-        if (GetLocalPlayer() == whichPlayer) then
-            if FakeBars ~= nil then
-                FakeBars:show(whichSound)
-            end
+        SetCinematicScene(unitTypeId, getUnitPlayerColor(whichPlayer, whichUnit), '', '', GetSoundDurationBJ(whichSound), GetSoundDurationBJ(whichSound))
+        if FakeBars ~= nil then
+            FakeBars:show(whichSound)
         end
     end
 
@@ -341,7 +345,7 @@ do
                 if (soundType == SOUND_WHAT) then
                     updatePlayerSelect(whichUnit)
                 end
-                if (IsUnitSelected(whichUnit, whichPlayer)) then
+                if (IsUnitSelected(whichUnit, GetLocalPlayer())) then
                     portraitAnimation(whichPlayer, whichUnit, whichSound)
                 end
             end
@@ -435,16 +439,12 @@ do
 
     local function endUnitTalkPortrait(whichPlayer, whichUnit)
         if (UnitSoundSets:hasUnitSoundSet(GetUnitTypeId(whichUnit)) and playerSpeaker == whichUnit) then
-            if (GetLocalPlayer() == whichPlayer) then
-                --  Do not end talk animations for native sound sets.
-                --  TODO Deselecting a unit with custom sound and selecting a unit with a native sound seems to stop the talk animation because of this.
-                EndCinematicScene()
-            end
+            --  Do not end talk animations for native sound sets.
+            --  TODO Deselecting a unit with custom sound and selecting a unit with a native sound seems to stop the talk animation because of this.
+            EndCinematicScene()
         end
-        if (GetLocalPlayer() == whichPlayer) then
-            if FakeBars ~= nil then
-                FakeBars:hide()
-            end
+        if FakeBars ~= nil then
+            FakeBars:hide()
         end
     end
 
@@ -524,7 +524,6 @@ do
     end
 
     local function triggerConditionAbility()
-        UnitSoundSets.printUnitSoundDebug("TriggerConditionAbility")
         return hasControl(GetLocalPlayer(), GetTriggerUnit())
     end
 
@@ -593,6 +592,6 @@ do
         printDebug("UnitSoundSetsInit DONE")
     end
 
-    OnInit.final(initUnitSoundSets)
+    OnInit.trig(initUnitSoundSets)
 end
 if Debug then Debug.endFile() end
