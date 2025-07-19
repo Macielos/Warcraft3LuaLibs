@@ -222,4 +222,16 @@ function SimpleUtils.split(string, separator)
     --SimpleUtils.printToString("split", t)
     return t
 end
+
+-- Returns the distance between 2 coordinates in Warcraft III units
+function SimpleUtils.distanceBetweenCoordinates(x1, y1, x2, y2)
+    local dx = (x2 - x1)
+    local dy = (y2 - y1)
+
+    return SquareRoot(dx*dx + dy*dy)
+end
+
+function SimpleUtils.angleBetweenCoordinates(x, y, x2, y2)
+    return Atan2(y2 - y, x2 - x)
+end
 if Debug then Debug.endFile() end
