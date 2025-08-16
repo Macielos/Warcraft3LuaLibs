@@ -18,8 +18,10 @@ do
             z = 0
         },
         targetGround = true,
-        targetStructure = true,
         targetAir = false,
+        attackIndex = 0, --0 or 1
+        range = nil,
+        freeFlightTime = 0.0
     }
 
     FireOnTheMove = {
@@ -56,9 +58,6 @@ do
         if unitTypeInfo.targetGround == true and IsUnitType(target, UNIT_TYPE_GROUND) then
             return true
         end
-        if unitTypeInfo.targetStructure == true and IsUnitType(target, UNIT_TYPE_STRUCTURE) then
-            return true
-        end
         if unitTypeInfo.targetAir == true and IsUnitType(target, UNIT_TYPE_FLYING) then
             return true
         end
@@ -80,8 +79,19 @@ do
         printDebugTargetQueue("acquired target: " .. GetUnitName(target))
     end
 
+    local function getAttackIndex(unit)
+        local typeId = GetUnitTypeId(unit)
+        return FireOnTheMove.unitTypes[typeId].attackIndex or 0
+    end
+
     local function getRange(unit)
-        return BlzGetUnitWeaponRealField(unit, UNIT_WEAPON_RF_ATTACK_RANGE, 0)
+        local typeId = GetUnitTypeId(unit)
+        local overridenRange = FireOnTheMove.unitTypes[typeId].range
+        if overridenRange ~= nil then
+            return overridenRange
+        end
+        local attackIndex = getAttackIndex(unit)
+        return BlzGetUnitWeaponRealField(unit, UNIT_WEAPON_RF_ATTACK_RANGE, attackIndex)
     end
 
     local function findAndAcquireNextTarget(trackedUnitState, unit)
@@ -111,20 +121,38 @@ do
     end
 
     local function fire(sourceUnit, targetUnit, unitTypeInfo)
+        --TODO Read this on track start and store per unit? (but it could change, e.g. via upgrades) Could I do this per unit type at game start?
+        local attackIndex = getAttackIndex(sourceUnit)
+        local missileModel = BlzGetUnitWeaponStringField(sourceUnit, UNIT_WEAPON_SF_ATTACK_PROJECTILE_ART, attackIndex)
+        local missileSpeed = BlzGetUnitWeaponRealField(sourceUnit, UNIT_WEAPON_RF_ATTACK_PROJECTILE_SPEED, attackIndex)
+        local damage = BlzGetUnitWeaponIntegerField(sourceUnit, UNIT_WEAPON_IF_ATTACK_DAMAGE_BASE, attackIndex)
+        local attackType = ConvertAttackType(BlzGetUnitWeaponIntegerField(sourceUnit, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, attackIndex))
+        local fireEffectPath = unitTypeInfo.fireEffectPath
+        local projectileLaunchOffset = unitTypeInfo.projectileLaunchOffset
+
         local sourceX = GetUnitX(sourceUnit)
         local sourceY = GetUnitY(sourceUnit)
         local sourceZ = UnitUtils:getUnitZ(sourceUnit)
-        local targetX = GetUnitX(targetUnit)
-        local targetY = GetUnitY(targetUnit)
-        local targetZ = UnitUtils:getUnitZ(targetUnit)
-        --TODO Read this on track start and store per unit? (but it could change, e.g. via upgrades) Could I do this per unit type at game start?
-        local angle = SimpleUtils.angleBetweenCoordinates(sourceX, sourceY, targetX, targetY)
-        local missileModel = BlzGetUnitWeaponStringField(sourceUnit, UNIT_WEAPON_SF_ATTACK_PROJECTILE_ART, 0)
-        local missileSpeed = BlzGetUnitWeaponRealField(sourceUnit, UNIT_WEAPON_RF_ATTACK_PROJECTILE_SPEED, 0)
-        local damage = BlzGetUnitWeaponIntegerField(sourceUnit, UNIT_WEAPON_IF_ATTACK_DAMAGE_BASE, 0)
-        local attackType = ConvertAttackType(BlzGetUnitWeaponIntegerField(sourceUnit, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, 0))
-        local fireEffectPath = unitTypeInfo.fireEffectPath
-        local projectileLaunchOffset = unitTypeInfo.projectileLaunchOffset
+
+        local hasFreeFlightTime = unitTypeInfo.freeFlightTime ~= nil and unitTypeInfo.freeFlightTime > 0
+
+        local angle
+        local targetX
+        local targetY
+        local targetZ
+
+        if hasFreeFlightTime then
+            angle = GetUnitFacing(sourceUnit)
+            targetX = sourceX + unitTypeInfo.freeFlightTime * missileSpeed * 100 * Cos(angle)
+            targetY = sourceY + unitTypeInfo.freeFlightTime * missileSpeed * 100 * Sin(angle)
+            targetZ = 100 --TODO
+        else
+            targetX = GetUnitX(targetUnit)
+            targetY = GetUnitY(targetUnit)
+            targetZ = UnitUtils:getUnitZ(targetUnit)
+            angle = SimpleUtils.angleBetweenCoordinates(sourceX, sourceY, targetX, targetY)
+        end
+
         if projectileLaunchOffset ~= nil then
             sourceX = sourceX + (projectileLaunchOffset.x or 0) * Cos(angle)
             sourceY = sourceY + (projectileLaunchOffset.y or 0) * Sin(angle)
@@ -132,13 +160,16 @@ do
         end
 
         printDebug(GetUnitName(sourceUnit) .. " firing at " .. GetUnitName(targetUnit))
+
         local missile = Missiles:create(sourceX, sourceY, sourceZ, targetX, targetY, targetZ)
         missile:model(missileModel)
         missile:speed(missileSpeed)
         missile.theta = angle
         missile.owner = GetOwningPlayer(sourceUnit)
         missile.source = sourceUnit
-        missile.target = targetUnit
+        if not hasFreeFlightTime then
+            missile.target = targetUnit
+        end
         missile.collision = 16
 
         missile.onHit = function(unit)
@@ -149,6 +180,13 @@ do
             UnitDamageTarget(sourceUnit, targetUnit, damage, true, true, attackType, DAMAGE_TYPE_NORMAL, nil)
             printDebug("fire on the move dmg: " .. tostring(damage))
             return true
+        end
+
+        if hasFreeFlightTime then
+            SimpleUtils.timed(unitTypeInfo.freeFlightTime, function()
+                missile.target = targetUnit
+                missile.turn = 0.1
+            end)
         end
 
         missile:launch()
@@ -191,11 +229,11 @@ do
     end
 
     local function getAttackInterval(unit)
-        return BlzGetUnitWeaponRealField(unit, UNIT_WEAPON_RF_ATTACK_BASE_COOLDOWN, 0)
+        local attackIndex = getAttackIndex(unit)
+        return BlzGetUnitWeaponRealField(unit, UNIT_WEAPON_RF_ATTACK_BASE_COOLDOWN, attackIndex)
     end
 
     local function startFireTimer(unitToTrack, fireTimer)
-        local typeId = GetUnitTypeId(unitToTrack)
         local attackInterval = getAttackInterval(unitToTrack)
         printDebug("startFireTimer: " .. GetUnitName(unitToTrack) .. ", " .. tostring(attackInterval))
         TimerStart(fireTimer, attackInterval, true, function()
@@ -279,7 +317,7 @@ do
     end
 
     local function validateUnitType(key, unitTypeInfo)
-        assert(unitTypeInfo.targetGround == true or unitTypeInfo.targetStructure == true or unitTypeInfo.targetAir == true, 'Fire on the move: unit must attack ground, air or structures')
+        assert(unitTypeInfo.targetGround == true or unitTypeInfo.targetAir == true, 'Fire on the move: unit must attack ground, air or both')
     end
 
     local function validateUnitTypes(unitTypes)

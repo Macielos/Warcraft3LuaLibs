@@ -134,6 +134,19 @@ function SimpleUtils.tableLength(t)
     return count
 end
 
+function SimpleUtils.tableRemove(t, itemToRemove)
+    if not t then
+        return false
+    end
+    for i, item in ipairs(t) do
+        if item == itemToRemove then
+
+        end
+        count = count + 1
+    end
+    return count
+end
+
 function SimpleUtils.ifElse(condition, onTrue, onFalse)
     if condition == true then
         return onTrue

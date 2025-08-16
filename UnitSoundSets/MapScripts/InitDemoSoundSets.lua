@@ -31,6 +31,7 @@ do
         addAbilitySoundSet(INAYLIA, SHIFT, 'InalkaShift')
         addAbilitySoundSet(INAYLIA, STEALTH, 'InalkaStealth')
         addAbilitySoundSet(INAYLIA, LIQUIDATION, 'InalkaLiquidation')
+        UnitSoundSets:addUnitSoundSet(FourCC('Hamg'), 'units\\human\\HeroArchMage\\HeroArchMage')
         print('InitDemoSoundSets DONE')
     end)
 end

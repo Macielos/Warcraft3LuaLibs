@@ -4,7 +4,7 @@ do
 
     --[[/**
      * Unit Sound Sets
-     * Originally created in JASS by Baradé
+     * Originally created in JASS by Barade
      * Ported to LUA and extended by Macielos
      *
      * Allows using custom unit sound sets without replacing existing ones or using a custom SLK file.

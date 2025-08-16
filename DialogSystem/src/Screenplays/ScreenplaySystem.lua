@@ -1005,7 +1005,7 @@ do
         return index > 0 and index <= SimpleUtils.tableLength(self)
     end
 
-    onInit(function()
+    OnInit.final(function()
         ScreenplaySystem:init()
     end)
 end
