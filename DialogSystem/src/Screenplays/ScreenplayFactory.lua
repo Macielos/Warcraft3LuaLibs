@@ -16,7 +16,7 @@ do
         if customName then
             actor.name = customName
         else
-            actor.name = GetUnitName(unit)
+            actor.name = UnitUtils:GetUnitProperName(unit)
         end
         return actor
     end

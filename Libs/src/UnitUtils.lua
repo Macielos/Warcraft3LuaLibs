@@ -50,6 +50,22 @@ do
     function UnitUtils:isEnemyUnit(player, unit)
         return UnitAlive(unit) and IsUnitEnemy(unit, player) and not IsUnitType(unit, UNIT_TYPE_STRUCTURE)
     end
+
+    function UnitUtils:IsUnitHero(unit)
+        return IsUnitType(unit, UNIT_TYPE_HERO)
+    end
+
+    function UnitUtils:GetUnitProperName(unit)
+        if UnitUtils:IsUnitHero(unit) then
+            return GetHeroName(unit)
+        end
+        return GetUnitName(unit)
+    end
+
+    function UnitUtils:GetHeroName(hero)
+        return BlzGetUnitStringField(hero, ConvertUnitStringField(FourCC('upro')))
+    end
+
 end
 
 if Debug then Debug.endFile() end
