@@ -5,15 +5,15 @@ do
     -- Hides the HP and mana text if it is longer than this.
     local FAKE_BAR_CHARACTERS_LIMIT = 11
     local HIDE_HP_INVULNERABLE_STRUCTURE = true
-    local FAKE_BAR_X = 0.2135
-    local FAKE_HP_BAR_Y = 0.0275
+    local FAKE_BAR_X = 0.2145
+    local FAKE_HP_BAR_Y = 0.027
     local FAKE_MANA_BAR_Y = 0.0135
-    local FAKE_BAR_WIDTH = 0.08
-    local FAKE_BAR_HEIGHT = 0.05
+    local FAKE_BAR_WIDTH = 0.078125
+    local FAKE_BAR_HEIGHT = 0.011875
     local FAKE_BAR_TEXT_SCALE = 1.16
 
-    local playerHP = nil --framehandle
-    local playerMana = nil --framehandle
+    local playerHPFrame = nil --framehandle
+    local playerManaFrame = nil --framehandle
 
     local playerAnimationTimer = {} --timer
     local playerUpdateCinematicSceneBarsTimer = {} --timer
@@ -23,22 +23,31 @@ do
     -- for handle IDs
     local h2 = InitHashtable()
 
-    FakeBars = {}
+    FakeBars = {
+        debug = false
+    }
+
+    local function printDebug(msg)
+        if FakeBars.debug then
+            print(msg)
+        end
+    end
 
     function FakeBars:hide()
-        BlzFrameSetVisible(playerHP, false)
-        BlzFrameSetVisible(playerMana, false)
+        printDebug('FakeBars:hide')
+        BlzFrameSetVisible(playerHPFrame, false)
+        BlzFrameSetVisible(playerManaFrame, false)
+        PauseTimer(playerUpdateCinematicSceneBarsTimer)
     end
 
     local function timerFunctionEndCinematicSceneBars()
         local playerId = LoadInteger(h2, GetHandleId(GetExpiredTimer()), 0)
         if (GetLocalPlayer() == Player(playerId)) then
-            BlzFrameSetVisible(playerHP, false)
-            BlzFrameSetVisible(playerMana, false)
+            FakeBars:hide()
             EndCinematicScene()
+        else
+            PauseTimer(playerUpdateCinematicSceneBarsTimer)
         end
-
-        PauseTimer(playerUpdateCinematicSceneBarsTimer)
     end
 
     -- Does not divide by 100.
@@ -149,20 +158,20 @@ do
     local function updateCinematicScene()
         local selected = SelectionTracker:getMainForLocalPlayer()
         if (selected == nil) then
-            BlzFrameSetVisible(playerHP, false)
-            BlzFrameSetVisible(playerMana, false)
+            BlzFrameSetVisible(playerHPFrame, false)
+            BlzFrameSetVisible(playerManaFrame, false)
         else
             if (GetUnitState(selected, UNIT_STATE_MAX_LIFE) > 0.0) then
-                BlzFrameSetVisible(playerHP, true)
-                BlzFrameSetText(playerHP, getHPText(selected))
+                BlzFrameSetVisible(playerHPFrame, true)
+                BlzFrameSetText(playerHPFrame, getHPText(selected))
             else
-                BlzFrameSetVisible(playerHP, false)
+                BlzFrameSetVisible(playerHPFrame, false)
             end
             if (GetUnitState(selected, UNIT_STATE_MAX_MANA) > 0.0) then
-                BlzFrameSetVisible(playerMana, true)
-                BlzFrameSetText(playerMana, getManaText(selected))
+                BlzFrameSetVisible(playerManaFrame, true)
+                BlzFrameSetText(playerManaFrame, getManaText(selected))
             else
-                BlzFrameSetVisible(playerMana, false)
+                BlzFrameSetVisible(playerManaFrame, false)
             end
         end
     end
@@ -174,11 +183,44 @@ do
         end
     end
 
+    local originalFrameHpWidth
+    local originalFrameHpHeight
+
+    local originalFrameManaWidth
+    local originalFrameManaHeight
+
+    local function readOriginalBarSizes()
+        local originalFrameHp = BlzGetOriginFrame(ORIGIN_FRAME_PORTRAIT_HP_TEXT, 0)
+        local originalFrameMana = BlzGetOriginFrame(ORIGIN_FRAME_PORTRAIT_MANA_TEXT, 0)
+
+        originalFrameHpWidth = BlzFrameGetWidth(originalFrameHp)
+        originalFrameHpHeight = BlzFrameGetHeight(originalFrameHp)
+
+        originalFrameManaWidth = BlzFrameGetWidth(originalFrameMana)
+        originalFrameManaHeight = BlzFrameGetHeight(originalFrameMana)
+
+    end
+
+    local function scaleBars()
+        if not originalFrameHpWidth then
+            readOriginalBarSizes()
+        end
+
+        BlzFrameSetAbsPoint(playerHPFrame, FRAMEPOINT_BOTTOMRIGHT, FAKE_BAR_X + originalFrameHpWidth, FAKE_HP_BAR_Y - originalFrameHpHeight)
+        BlzFrameSetAbsPoint(playerManaFrame, FRAMEPOINT_BOTTOMRIGHT, FAKE_BAR_X + originalFrameManaWidth, FAKE_MANA_BAR_Y - originalFrameManaHeight)
+
+        printDebug('scaleBars X: ' .. tostring(FAKE_BAR_WIDTH) .. ' -> ' .. tostring(originalFrameHpWidth))
+        printDebug('scaleBars Y: ' .. tostring(FAKE_BAR_HEIGHT) .. ' -> ' .. tostring(originalFrameHpHeight))
+    end
+
     function FakeBars:show(whichSound)
+        printDebug('FakeBars:show')
+        scaleBars()
+
         local playerId = GetPlayerId(GetLocalPlayer())
 
-        BlzFrameSetVisible(playerHP, true)
-        BlzFrameSetVisible(playerMana, true)
+        BlzFrameSetVisible(playerHPFrame, true)
+        BlzFrameSetVisible(playerManaFrame, true)
         updateCinematicScene()
 
         PauseTimer(playerAnimationTimer)
@@ -189,19 +231,19 @@ do
     end
 
     local function timerFunctionCreatePlayerPortraits()
-        playerHP = BlzCreateFrameByType("Text", "HP", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
-        BlzFrameSetAbsPoint(playerHP, FRAMEPOINT_TOPLEFT, FAKE_BAR_X, FAKE_HP_BAR_Y)
-        BlzFrameSetAbsPoint(playerHP, FRAMEPOINT_BOTTOMRIGHT, FAKE_BAR_X + FAKE_BAR_WIDTH, FAKE_HP_BAR_Y - FAKE_BAR_HEIGHT)
-        BlzFrameSetScale(playerHP, FAKE_BAR_TEXT_SCALE)
-        BlzFrameSetTextAlignment(playerHP, TEXT_JUSTIFY_TOP, TEXT_JUSTIFY_CENTER)
-        BlzFrameSetVisible(playerHP, false)
+        playerHPFrame = BlzCreateFrameByType("Text", "HP", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
+        BlzFrameSetAbsPoint(playerHPFrame, FRAMEPOINT_TOPLEFT, FAKE_BAR_X, FAKE_HP_BAR_Y)
+        BlzFrameSetAbsPoint(playerHPFrame, FRAMEPOINT_BOTTOMRIGHT, FAKE_BAR_X + FAKE_BAR_WIDTH, FAKE_HP_BAR_Y - FAKE_BAR_HEIGHT)
+        BlzFrameSetScale(playerHPFrame, FAKE_BAR_TEXT_SCALE)
+        BlzFrameSetTextAlignment(playerHPFrame, TEXT_JUSTIFY_TOP, TEXT_JUSTIFY_CENTER)
+        BlzFrameSetVisible(playerHPFrame, false)
 
-        playerMana = BlzCreateFrameByType("Text", "Mana", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
-        BlzFrameSetAbsPoint(playerMana, FRAMEPOINT_TOPLEFT, FAKE_BAR_X, FAKE_MANA_BAR_Y)
-        BlzFrameSetAbsPoint(playerMana, FRAMEPOINT_BOTTOMRIGHT, FAKE_BAR_X + FAKE_BAR_WIDTH, FAKE_MANA_BAR_Y - FAKE_BAR_HEIGHT)
-        BlzFrameSetScale(playerMana, FAKE_BAR_TEXT_SCALE)
-        BlzFrameSetTextAlignment(playerMana, TEXT_JUSTIFY_TOP, TEXT_JUSTIFY_CENTER)
-        BlzFrameSetVisible(playerMana, false)
+        playerManaFrame = BlzCreateFrameByType("Text", "Mana", BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0), "", 0)
+        BlzFrameSetAbsPoint(playerManaFrame, FRAMEPOINT_TOPLEFT, FAKE_BAR_X, FAKE_MANA_BAR_Y)
+        BlzFrameSetAbsPoint(playerManaFrame, FRAMEPOINT_BOTTOMRIGHT, FAKE_BAR_X + FAKE_BAR_WIDTH, FAKE_MANA_BAR_Y - FAKE_BAR_HEIGHT)
+        BlzFrameSetScale(playerManaFrame, FAKE_BAR_TEXT_SCALE)
+        BlzFrameSetTextAlignment(playerManaFrame, TEXT_JUSTIFY_TOP, TEXT_JUSTIFY_CENTER)
+        BlzFrameSetVisible(playerManaFrame, false)
 
         PauseTimer(GetExpiredTimer())
         DestroyTimer(GetExpiredTimer())

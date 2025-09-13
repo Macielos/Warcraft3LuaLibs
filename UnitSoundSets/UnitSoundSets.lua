@@ -1,7 +1,5 @@
 if Debug then Debug.beginFile "UnitSoundSets" end
 do
-    local debug = false
-
     --[[/**
      * Unit Sound Sets
      * Originally created in JASS by Barade
@@ -96,12 +94,12 @@ do
     local abilityHandles = InitHashtable()
 
     --  all this exists for the local player only and is never synchronized between players
-    local playerClickCounter = {} --array
-    local playerClickTarget = {} --unit array
-    local playerSound = {} --sound array
-    local playerSoundTimer = {} --timer array
-    local playerSpeaker = {} -- unit array
-    local playerPissedCounter = {} --array
+    local playerClickCounter
+    local playerClickTarget
+    local playerSound
+    local playerSoundTimer
+    local playerSpeakerUnit
+    local playerPissedCounter = 0
 
     local selectionTrigger = CreateTrigger()
     local deselectionTrigger = CreateTrigger()
@@ -118,10 +116,12 @@ do
     local EAX_SETTING = "HeroAcksEAX"
     local EAX_SETTING_DEATH = "DefaultEAXON"
 
-    UnitSoundSets = {}
+    UnitSoundSets = {
+        debug = false
+    }
 
     local function printDebug(msg)
-        if debug then
+        if UnitSoundSets.debug then
             print(msg)
         end
     end
@@ -237,24 +237,24 @@ do
     end
 
     local function isUnitSpeakingForPlayer(whichUnit)
-        local sameUnit = playerSpeaker == whichUnit
+        local sameUnit = playerSpeakerUnit == whichUnit
         return sameUnit and not (playerSound == nil) and TimerGetRemaining(playerSoundTimer) > 0.0 --  This would desync: GetSoundIsPlaying(playerSound)
     end
 
     local function setCurrentlyPlayingPlayerSound(soundSet, whichSound, whichUnit)
         --  only update if it is a different speaker or the current unit is not speaking
-        if (playerSpeaker ~= nil and isUnitSpeakingForPlayer(playerSpeaker)) then
+        if (playerSpeakerUnit ~= nil and isUnitSpeakingForPlayer(playerSpeakerUnit)) then
             printDebug("Player already speaking")
             return false
         end
 
         playerSound = whichSound
-        playerSpeaker = whichUnit
+        playerSpeakerUnit = whichUnit
         soundSet:setLastPlayedSound(GetUnitTypeId(whichUnit), whichSound)
 
         TimerStart(playerSoundTimer, GetSoundDurationBJ(whichSound), false, function()
-            if playerSpeaker == whichUnit then
-                playerSpeaker = nil
+            if playerSpeakerUnit == whichUnit then
+                playerSpeakerUnit = nil
             end
         end)
         if (hasControl(GetLocalPlayer(), whichUnit)) then
@@ -297,7 +297,7 @@ do
         return soundSet:getRandom(unitTypeId, soundType)
     end
 
-    local function updatePlayerSelect(whichUnit)
+    local function updatePlayerClickedUnit(whichUnit)
         if (playerClickTarget == whichUnit) then
             playerClickCounter = playerClickCounter + 1
         else
@@ -328,7 +328,7 @@ do
         return GetPlayerColor(GetOwningPlayer(whichUnit))
     end
 
-    local function portraitAnimation(whichPlayer, whichUnit, whichSound)
+    local function startUnitTalkPortrait(whichPlayer, whichUnit, whichSound)
         local unitTypeId = GetUnitTypeId(whichUnit)
         SetCinematicScene(unitTypeId, getUnitPlayerColor(whichPlayer, whichUnit), '', '', GetSoundDurationBJ(whichSound), GetSoundDurationBJ(whichSound))
         if FakeBars ~= nil then
@@ -340,16 +340,16 @@ do
         if not (whichSound == nil) then
             if (setCurrentlyPlayingPlayerSound(soundSet, whichSound, whichUnit)) then
                 if (soundType == SOUND_WHAT) then
-                    updatePlayerSelect(whichUnit)
+                    updatePlayerClickedUnit(whichUnit)
                 end
                 if (IsUnitSelected(whichUnit, GetLocalPlayer())) then
-                    portraitAnimation(whichPlayer, whichUnit, whichSound)
+                    startUnitTalkPortrait(whichPlayer, whichUnit, whichSound)
                 end
             end
             whichSound = nil
             --  update selected unit for pissed even if it has no sound
         elseif (soundType == SOUND_WHAT) then
-            updatePlayerSelect(whichUnit)
+            updatePlayerClickedUnit(whichUnit)
         end
     end
 
@@ -402,6 +402,17 @@ do
             playSoundInternal(unitSoundSets, whichPlayer, whichUnit, SOUND_PISSED, whichSound)
         end
     end
+    local function endUnitTalkPortrait(whichUnit)
+        if (UnitSoundSets:hasUnitSoundSet(GetUnitTypeId(whichUnit)) and playerSpeakerUnit == whichUnit) then
+            --  Do not end talk animations for native sound sets.
+            --  TODO Deselecting a unit with custom sound and selecting a unit with a native sound seems to stop the talk animation because of this.
+            EndCinematicScene()
+        end
+        printDebug('endUnitTalkPortrait' .. GetUnitName(whichUnit))
+        if FakeBars ~= nil then
+            FakeBars:hide()
+        end
+    end
 
     local function timerFunctionSelect()
         local expiredTimer = GetExpiredTimer()
@@ -409,9 +420,12 @@ do
         local triggerUnit = LoadUnitHandle(handles, handleId, 0)
         printDebug('TimerFunctionSelect' .. GetUnitName(triggerUnit))
         local triggerPlayer = LoadPlayerHandle(handles, handleId, 1)
+        if playerSpeakerUnit ~= nil and not isUnitSpeakingForPlayer(triggerUnit) then
+            endUnitTalkPortrait(playerSpeakerUnit)
+        end
         local hasControl = hasControl(triggerPlayer, triggerUnit)
         if (hasControl and IsUnitMainSelectedUnitForPlayer(triggerUnit) and areUnitSoundsEnabled(triggerUnit)) then
-            if not (playerSpeaker == triggerUnit and isUnitSpeakingForPlayer(playerSpeaker)) then
+            if not (playerSpeakerUnit == triggerUnit and isUnitSpeakingForPlayer(playerSpeakerUnit)) then
                 if (isPlayerSelectionPissed(triggerUnit)) then
                     playNextPissedSound(triggerPlayer, triggerUnit)
                 else
@@ -435,17 +449,6 @@ do
         SavePlayerHandle(handles, handleId, 1, GetTriggerPlayer())
         --  some delay to determine the main selected unit
         TimerStart(whichTimer, 0.0, false, timerFunctionSelect)
-    end
-
-    local function endUnitTalkPortrait(whichUnit)
-        if (UnitSoundSets:hasUnitSoundSet(GetUnitTypeId(whichUnit)) and playerSpeaker == whichUnit) then
-            --  Do not end talk animations for native sound sets.
-            --  TODO Deselecting a unit with custom sound and selecting a unit with a native sound seems to stop the talk animation because of this.
-            EndCinematicScene()
-        end
-        if FakeBars ~= nil then
-            FakeBars:hide()
-        end
     end
 
     local function triggerConditionDeselect()
