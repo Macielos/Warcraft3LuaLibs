@@ -6,7 +6,7 @@ do
     local group = CreateGroup()
     local units = {} -- unit array
     local unitsCount = 0
-    local filter -- filterfunc
+    local selectedUnitsOrderedFilter -- filterfunc
     
     local debug = false
 
@@ -28,7 +28,7 @@ do
         end
     end
 
-    local function selectionTrackerFilter()
+    local function selectionTrackerFilterFunction()
         local u = GetFilterUnit()
         local prio = BlzGetUnitRealField(u, UNIT_RF_PRIORITY)
         local found = false
@@ -80,7 +80,7 @@ do
         printDebug("GetMainSelectedUnit: " .. tostring(index))
         GroupClear(group)
         if index >= 0 then
-            GroupEnumUnitsSelected(group, whichPlayer, filter)
+            GroupEnumUnitsSelected(group, whichPlayer, selectedUnitsOrderedFilter)
             local unit = units[index + 1]
             units = {}
             unitsCount = 0
@@ -115,7 +115,7 @@ do
     end
 
     local function initSelectionTracker()
-        filter = Filter(selectionTrackerFilter)
+        selectedUnitsOrderedFilter = Filter(selectionTrackerFilterFunction)
         TimerStart(CreateTimer(), 0, false, initFrames)
         TriggerRegisterGameEvent(loadBugTrigger, EVENT_GAME_LOADED)
         TriggerAddAction(loadBugTrigger, initFrames)

@@ -125,13 +125,16 @@ end
 
 function SimpleUtils.tableLength(t)
     if not t then
-        return nil
+        return 0
     end
-    local count = 0
-    for _ in pairs(t) do
-        count = count + 1
+    local idx = 0
+    while true do
+        assert(idx < 10000, 'ERROR: reached 10000 items in table, feel free to increase it in SimpleUnits script, I just gave it some limit to avoid potential infinite loop')
+        if t[idx + 1] == nil then
+            return idx
+        end
+        idx = idx + 1
     end
-    return count
 end
 
 function SimpleUtils.tableRemove(t, itemToRemove)

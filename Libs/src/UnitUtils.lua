@@ -38,6 +38,16 @@ do
         end
     end
 
+    function UnitUtils:forEachUnitUntilFalse(group, action)
+        local groupSize = BlzGroupGetSize(group)
+        for i = 0, groupSize - 1 do
+            local unit = BlzGroupUnitAt(group, i)
+            if action(unit) == false then
+                return
+            end
+        end
+    end
+
     function UnitUtils:GetLocZ(x, y)
         MoveLocation(location, x, y)
         return GetLocationZ(location)

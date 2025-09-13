@@ -88,16 +88,6 @@ do
     --  Pissed : When you click a lot of times on the unit, weird sounds will be played instead of normals, which are called Pissed Sounds.
     local SOUND_PISSED = 6
 
-    --  Default limits for specific sound types. Feel free to increase them as you see fit.
-    local MAX_SOUNDS_WHAT = 9
-    local MAX_SOUNDS_YES = 9
-    local MAX_SOUNDS_ATTACK = 9
-    local MAX_SOUNDS_PISSED = 19
-    local MAX_SOUNDS_READY = 1
-    local MAX_SOUNDS_WARCRY = 1
-    local MAX_SOUNDS_DEATH = 1
-    local MAX_SOUNDS_ABILITY = 19
-
     local unitSoundSets = SoundSet:new()
 
     local unitAbilitySoundSets = SoundSet:new()
@@ -177,7 +167,7 @@ do
         return soundHandle
     end
 
-    local function addUnitSoundSetFromFilesType (unitTypeId, filePath, soundType, count, prefix)
+    local function addUnitSoundSetFromFilesType (unitTypeId, filePath, soundType, prefix)
         local eaxSetting
         if soundType == SOUND_DEATH then
             eaxSetting = EAX_SETTING_DEATH
@@ -185,7 +175,7 @@ do
             eaxSetting = EAX_SETTING
         end
         local i = 1
-        while i <= count do
+        while true do
             local fullName = filePath .. prefix .. I2S(i)
             if not (unitSoundSets:add(unitTypeId, soundType, i, createSoundFromFile(fullName, eaxSetting))) then
                 return
@@ -196,20 +186,19 @@ do
     end
 
     function UnitSoundSets:addUnitSoundSet(unitTypeId, filePathPrefix)
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_DEATH, MAX_SOUNDS_DEATH, "Death")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_WHAT, MAX_SOUNDS_WHAT, "What")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES, MAX_SOUNDS_YES, "Yes")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES_ATTACK, MAX_SOUNDS_ATTACK, "Attack")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES_ATTACK, MAX_SOUNDS_ATTACK, "YesAttack")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_WARCRY, MAX_SOUNDS_WARCRY, "WarCry")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_READY, MAX_SOUNDS_READY, "Ready")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, MAX_SOUNDS_PISSED, "Pissed")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, MAX_SOUNDS_PISSED, "Hidden")
-        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, MAX_SOUNDS_PISSED, "Gag")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_DEATH, "Death")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_WHAT, "What")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES, "Yes")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES_ATTACK, "Attack")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_YES_ATTACK, "YesAttack")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_WARCRY, "WarCry")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_READY, "Ready")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, "Pissed")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, "Hidden")
+        addUnitSoundSetFromFilesType(unitTypeId, filePathPrefix, SOUND_PISSED, "Gag")
     end
 
     local function addUnitAbilitySoundFromFile(unitTypeId, abilityId, filePath, index)
-        --UnitSoundSets.printUnitSoundDebug("Adding ability sound for unit type " .. tostring(unitTypeId) .. ", ability: " .. tostring(abilityId) .. " -> fullName: " .. fullName);
         return unitAbilitySoundSets:add(unitTypeId, abilityId, index, createSoundFromFile(filePath, EAX_SETTING))
     end
 
@@ -219,7 +208,7 @@ do
 
     function UnitSoundSets:addUnitAbilityMultipleSounds(unitTypeId, abilityId, filePathPrefix)
         local i = 1
-        while i <= MAX_SOUNDS_ABILITY do
+        while true do
             if not addUnitAbilitySoundFromFile(unitTypeId, abilityId, filePathPrefix .. tostring(i), i) then
                 return
             end
@@ -228,6 +217,10 @@ do
     end
 
     -- =============================================================================
+
+    local function areUnitSoundsEnabled(unit)
+        return not (bj_cineModeAlreadyIn == true or IsUnitPaused(unit) or UnitIsSleeping(unit))
+    end
 
     local function hasControl(whichPlayer, whichUnit)
         return GetOwningPlayer(whichUnit) == whichPlayer or GetPlayerAlliance(whichPlayer, GetOwningPlayer(whichUnit), ALLIANCE_SHARED_CONTROL)
@@ -248,9 +241,9 @@ do
         return sameUnit and not (playerSound == nil) and TimerGetRemaining(playerSoundTimer) > 0.0 --  This would desync: GetSoundIsPlaying(playerSound)
     end
 
-    local function updatePlayerSound(soundSet, whichSound, whichUnit)
+    local function setCurrentlyPlayingPlayerSound(soundSet, whichSound, whichUnit)
         --  only update if it is a different speaker or the current unit is not speaking
-        if (playerSpeaker == whichUnit and isUnitSpeakingForPlayer(playerSpeaker)) then
+        if (playerSpeaker ~= nil and isUnitSpeakingForPlayer(playerSpeaker)) then
             printDebug("Player already speaking")
             return false
         end
@@ -259,7 +252,11 @@ do
         playerSpeaker = whichUnit
         soundSet:setLastPlayedSound(GetUnitTypeId(whichUnit), whichSound)
 
-        TimerStart(playerSoundTimer, GetSoundDurationBJ(whichSound), false, nil)
+        TimerStart(playerSoundTimer, GetSoundDurationBJ(whichSound), false, function()
+            if playerSpeaker == whichUnit then
+                playerSpeaker = nil
+            end
+        end)
         if (hasControl(GetLocalPlayer(), whichUnit)) then
             StartSound(whichSound)
         end
@@ -341,7 +338,7 @@ do
 
     local function playSoundInternal(soundSet, whichPlayer, whichUnit, soundType, whichSound)
         if not (whichSound == nil) then
-            if (updatePlayerSound(soundSet, whichSound, whichUnit)) then
+            if (setCurrentlyPlayingPlayerSound(soundSet, whichSound, whichUnit)) then
                 if (soundType == SOUND_WHAT) then
                     updatePlayerSelect(whichUnit)
                 end
@@ -373,6 +370,9 @@ do
     end
 
     local function playRandomSoundForAlliesWithSharedControl(whichUnit, soundType)
+        if not areUnitSoundsEnabled(whichUnit) then
+            return
+        end
         playRandomSoundForForce(getAlliesWithSharedControl(GetOwningPlayer(whichUnit)), whichUnit, soundType)
     end
 
@@ -410,7 +410,7 @@ do
         printDebug('TimerFunctionSelect' .. GetUnitName(triggerUnit))
         local triggerPlayer = LoadPlayerHandle(handles, handleId, 1)
         local hasControl = hasControl(triggerPlayer, triggerUnit)
-        if (hasControl and IsUnitMainSelectedUnitForPlayer(triggerUnit)) then
+        if (hasControl and IsUnitMainSelectedUnitForPlayer(triggerUnit) and areUnitSoundsEnabled(triggerUnit)) then
             if not (playerSpeaker == triggerUnit and isUnitSpeakingForPlayer(playerSpeaker)) then
                 if (isPlayerSelectionPissed(triggerUnit)) then
                     playNextPissedSound(triggerPlayer, triggerUnit)
@@ -437,7 +437,7 @@ do
         TimerStart(whichTimer, 0.0, false, timerFunctionSelect)
     end
 
-    local function endUnitTalkPortrait(whichPlayer, whichUnit)
+    local function endUnitTalkPortrait(whichUnit)
         if (UnitSoundSets:hasUnitSoundSet(GetUnitTypeId(whichUnit)) and playerSpeaker == whichUnit) then
             --  Do not end talk animations for native sound sets.
             --  TODO Deselecting a unit with custom sound and selecting a unit with a native sound seems to stop the talk animation because of this.
@@ -449,7 +449,7 @@ do
     end
 
     local function triggerConditionDeselect()
-        endUnitTalkPortrait(GetTriggerPlayer(), GetTriggerUnit())
+        endUnitTalkPortrait(GetTriggerUnit())
         return false
     end
 
@@ -460,7 +460,9 @@ do
         local orderId = GetIssuedOrderId()
         printDebug("TriggerActionOrder " .. GetUnitName(triggerUnit) .. ": " .. tostring(orderId))
         local slotPlayer = GetLocalPlayer()
-        if (hasControl(slotPlayer, triggerUnit) and IsUnitMainSelectedUnitForPlayer(triggerUnit)) then
+        if (hasControl(slotPlayer, triggerUnit)
+                and IsUnitMainSelectedUnitForPlayer(triggerUnit)
+                and areUnitSoundsEnabled(triggerUnit)) then
             if (orderId == ORDER_ID_ATTACK or orderId == ORDER_ID_ATTACK_ONCE or (orderId == ORDER_ID_SMART and not (GetOrderTargetUnit() == nil) and IsUnitEnemy(GetOrderTargetUnit(), slotPlayer))) then
                 resetCounters()
                 if (unitSoundSets:exists(triggerUnitTypeId, SOUND_WARCRY) and IsUnitType(GetOrderTargetUnit(), UNIT_TYPE_HERO) and GetRandomInt(0, 100) <= WARCRY_CHANCE) then
@@ -500,7 +502,7 @@ do
         for i = 0, bj_MAX_PLAYERS - 1 do
             slotPlayer = Player(i)
             if (IsPlayerInForce(slotPlayer, alliesWithSharedControl)) then
-                endUnitTalkPortrait(slotPlayer, triggerUnit)
+                endUnitTalkPortrait(triggerUnit)
             end
             slotPlayer = nil
         end
@@ -540,6 +542,9 @@ do
     local function triggerActionAbility()
         local abilityId = GetSpellAbilityId()
         local caster = GetTriggerUnit()
+        if not areUnitSoundsEnabled(caster) then
+            return
+        end
         local ability = BlzGetUnitAbility(caster, abilityId)
         printDebug("TriggerActionAbility " .. GetUnitName(caster) .. ": " .. tostring(abilityId))
         local whichTimer = CreateTimer()
