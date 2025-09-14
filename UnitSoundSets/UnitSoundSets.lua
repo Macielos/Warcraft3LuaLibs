@@ -12,12 +12,11 @@ do
      * - Import custom soundfiles into your map.
      * - Call this LUA code during the map initialization:
      *   AddUnitSoundSet(FourCC('H0F2'), "war3Imported\\HeroPaladin")
-     *
      *   'H0F2' should be the raw code of your custom hero unit type.
      *   "war3Imported\\HeroPaladin" should be the prefix for all unit sound files.
      *   The extensions "mp3", "flac" and "wav" are used automatically.
      *
-     *  You can have ANY number of What, Yes, Attack, Pissed etc. sounds, simply adjust the limits below (MAX_SOUNDS_XXX constants)
+     *  You can have ANY number of What, Yes, Attack, Pissed etc. sounds.
      *  You can add multiple sound sets for the same unit type, they will be treated additively.
      *  For most sound types adding order doesn't matter as they are played randomly, the only exception is Pissed
      *  sounds which always play in the same order
@@ -61,9 +60,8 @@ do
      * Gag2
      * ...
      * Disable cinematic sub titles with ForceCinematicSubtitles or in the game settings.
-     * Selecting the same unit again will not play the next sound immediately but wait for the current sound
-     * to be finished. Selecting another unit will immediately play the sound of the other unit. This seems to be
-     * Warcraft's behavior.
+     * Selecting the same or a different unit again will not play the next sound until the previous sound is playing.
+     * This seems to be Warcraft's behavior.
      */]]
 
     --  You will hear the pissed sounds after this number of clicks on the same unit.

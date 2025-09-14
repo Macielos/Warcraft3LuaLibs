@@ -5,11 +5,15 @@ do
     -- Hides the HP and mana text if it is longer than this.
     local FAKE_BAR_CHARACTERS_LIMIT = 11
     local HIDE_HP_INVULNERABLE_STRUCTURE = true
+    -- Default positions of fake bars, they are hardcoded as there's no native to get them from the original frames,
+    -- if you use customized, UI may need to adjust these
     local FAKE_BAR_X = 0.2145
     local FAKE_HP_BAR_Y = 0.027
     local FAKE_MANA_BAR_Y = 0.0135
+    -- Default sizes of fake bars, those are placeholders and are replaced by the ones from original frames on first use
     local FAKE_BAR_WIDTH = 0.078125
     local FAKE_BAR_HEIGHT = 0.011875
+
     local FAKE_BAR_TEXT_SCALE = 1.16
 
     local playerHPFrame = nil --framehandle
