@@ -80,6 +80,15 @@ function SimpleUtils.timedRepeat(dur, count, func)
     return tmr;
 end
 
+function SimpleUtils.timedPeriodic(interval, shouldContinueFunc)
+    local timer = CreateTimer()
+    TimerStart(timer, interval, true, function()
+        if shouldContinueFunc() ~= true then
+            SimpleUtils.releaseTimer(timer)
+        end
+    end)
+end
+
 -- :: clones a table and any child tables (setting metatables)
 -- @t = table to copy
 function SimpleUtils.deepCopy(t)

@@ -937,6 +937,9 @@ do
             if item.trigger then
                 newChain[itemIndex].trigger = item.trigger
             end
+            if item.actions then
+                newChain[itemIndex].actions = item.actions
+            end
             if item.thenGoTo then
                 newChain[itemIndex].thenGoTo = item.thenGoTo
             end
