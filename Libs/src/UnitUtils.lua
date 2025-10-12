@@ -38,6 +38,14 @@ do
         end
     end
 
+    function UnitUtils:forEachUnitReversed(group, action)
+        local groupSize = BlzGroupGetSize(group)
+        for i = groupSize - 1, 0, -1 do
+            local unit = BlzGroupUnitAt(group, i)
+            action(unit)
+        end
+    end
+
     function UnitUtils:forEachUnitUntilFalse(group, action)
         local groupSize = BlzGroupGetSize(group)
         for i = 0, groupSize - 1 do
