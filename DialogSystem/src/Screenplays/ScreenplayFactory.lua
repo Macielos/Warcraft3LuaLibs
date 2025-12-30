@@ -11,6 +11,7 @@ do
     ---@param customName string
     ---@return ScreenplaySystem.actor
     function ScreenplayFactory.createActor(unit, customName)
+        assert(unit ~= nil, "Actor unit cannot be null")
         local actor = ScreenplaySystem.actor:new()
         actor.unit = unit
         if customName then
@@ -28,6 +29,8 @@ do
     ---@param customName string
     ---@return ScreenplaySystem.actor
     function ScreenplayFactory.createActorFromType(unitType, player, customName)
+        assert(unitType ~= nil, "Actor unit type cannot be null")
+        assert(player ~= nil, "Actor player cannot be null")
         local actor = ScreenplaySystem.actor:new()
         actor.unitType = unitType
         actor.player = player
