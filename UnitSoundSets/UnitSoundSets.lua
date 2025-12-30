@@ -88,14 +88,11 @@ do
 
     local unitAbilitySoundSets = SoundSet:new()
 
-    local handles = InitHashtable()
-    local abilityHandles = InitHashtable()
-
     --  all this exists for the local player only and is never synchronized between players
     local playerClickCounter
     local playerClickTarget
     local playerSound
-    local playerSoundTimer
+    local playerSoundTimer = CreateTimer()
     local playerSpeakerUnit
     local playerPissedCounter = 0
 
@@ -128,10 +125,10 @@ do
         printDebug(msg)
     end
 
-    local function IsUnitMainSelectedUnitForPlayer (whichUnit)
+    local function isUnitMainSelectedUnitForPlayer (whichUnit)
         local mainSelected = SelectionTracker:getMainForLocalPlayer()
         printDebug("Main selected " .. GetUnitName(mainSelected))
-        return not (mainSelected == nil) and mainSelected == whichUnit
+        return mainSelected ~= nil and mainSelected == whichUnit
     end
 
     function UnitSoundSets:removeAllUnitSoundSets()
@@ -220,7 +217,7 @@ do
         return not (bj_cineModeAlreadyIn == true or IsUnitPaused(unit) or UnitIsSleeping(unit))
     end
 
-    local function hasControl(whichPlayer, whichUnit)
+    local function playerHasControl(whichPlayer, whichUnit)
         return GetOwningPlayer(whichUnit) == whichPlayer or GetPlayerAlliance(whichPlayer, GetOwningPlayer(whichUnit), ALLIANCE_SHARED_CONTROL)
     end
 
@@ -235,31 +232,29 @@ do
     end
 
     local function isUnitSpeakingForPlayer(whichUnit)
-        local sameUnit = playerSpeakerUnit == whichUnit
-        return sameUnit and not (playerSound == nil) and TimerGetRemaining(playerSoundTimer) > 0.0 --  This would desync: GetSoundIsPlaying(playerSound)
+        return playerSpeakerUnit == whichUnit and playerSound ~= nil and TimerGetRemaining(playerSoundTimer) > 0.0 --  This would desync: GetSoundIsPlaying(playerSound)
+    end
+
+    local function isAnyUnitSpeakingForPlayer()
+        return playerSpeakerUnit ~= nil and isUnitSpeakingForPlayer(playerSpeakerUnit)
     end
 
     local function setCurrentlyPlayingPlayerSound(soundSet, whichSound, whichUnit)
         --  only update if it is a different speaker or the current unit is not speaking
-        if (playerSpeakerUnit ~= nil and isUnitSpeakingForPlayer(playerSpeakerUnit)) then
-            printDebug("Player already speaking")
-            return false
-        end
-
         playerSound = whichSound
         playerSpeakerUnit = whichUnit
         soundSet:setLastPlayedSound(GetUnitTypeId(whichUnit), whichSound)
 
+        StartSound(whichSound)
+        printDebug(GetUnitName(whichUnit) .. ": start sound")
+
         TimerStart(playerSoundTimer, GetSoundDurationBJ(whichSound), false, function()
             if playerSpeakerUnit == whichUnit then
                 playerSpeakerUnit = nil
+                playerSound = nil
+                printDebug(GetUnitName(whichUnit) .. ": end sound")
             end
         end)
-        if (hasControl(GetLocalPlayer(), whichUnit)) then
-            StartSound(whichSound)
-        end
-
-        return true
     end
 
     local function resetCounters()
@@ -335,24 +330,30 @@ do
     end
 
     local function playSoundInternal(soundSet, whichPlayer, whichUnit, soundType, whichSound)
-        if not (whichSound == nil) then
-            if (setCurrentlyPlayingPlayerSound(soundSet, whichSound, whichUnit)) then
-                if (soundType == SOUND_WHAT) then
-                    updatePlayerClickedUnit(whichUnit)
-                end
-                if (IsUnitSelected(whichUnit, GetLocalPlayer())) then
-                    startUnitTalkPortrait(whichPlayer, whichUnit, whichSound)
-                end
-            end
-            whichSound = nil
-            --  update selected unit for pissed even if it has no sound
-        elseif (soundType == SOUND_WHAT) then
+        if whichSound == nil then
+            printDebug("No sound provided")
+            return
+        end
+        if isAnyUnitSpeakingForPlayer() then
+            printDebug("Player already speaking")
+            return
+        end
+
+        setCurrentlyPlayingPlayerSound(soundSet, whichSound, whichUnit)
+
+        if soundType == SOUND_WHAT then
             updatePlayerClickedUnit(whichUnit)
+        elseif soundType == SOUND_YES or soundType == SOUND_YES_ATTACK or soundType == SOUND_WARCRY then
+            resetCounters()
+        end
+
+        if (IsUnitSelected(whichUnit, GetLocalPlayer())) then
+            startUnitTalkPortrait(whichPlayer, whichUnit, whichSound)
         end
     end
 
     local function playRandomSound(soundSet, whichPlayer, whichUnit, soundType)
-        printDebug("PlayRandomSound: " .. tostring(soundType))
+        printDebug("PlayRandomSound: " .. GetUnitName(whichUnit) .. ", " .. tostring(soundType))
         local whichSound = getRandomSound(soundSet, whichUnit, soundType)
         playSoundInternal(soundSet, whichPlayer, whichUnit, soundType, whichSound)
     end
@@ -385,10 +386,9 @@ do
 
     local function playRandom3DDeathSound(whichUnit)
         local soundHandle = getRandomSound(unitSoundSets, whichUnit, SOUND_DEATH)
-        if not (soundHandle == nil) then
+        if soundHandle ~= nil then
             StartSound(soundHandle)
             AttachSoundToUnit(soundHandle, whichUnit)
-            soundHandle = nil
         end
     end
 
@@ -400,6 +400,7 @@ do
             playSoundInternal(unitSoundSets, whichPlayer, whichUnit, SOUND_PISSED, whichSound)
         end
     end
+
     local function endUnitTalkPortrait(whichUnit)
         if (UnitSoundSets:hasUnitSoundSet(GetUnitTypeId(whichUnit)) and playerSpeakerUnit == whichUnit) then
             --  Do not end talk animations for native sound sets.
@@ -412,41 +413,35 @@ do
         end
     end
 
-    local function timerFunctionSelect()
-        local expiredTimer = GetExpiredTimer()
-        local handleId = GetHandleId(expiredTimer)
-        local triggerUnit = LoadUnitHandle(handles, handleId, 0)
-        printDebug('TimerFunctionSelect' .. GetUnitName(triggerUnit))
-        local triggerPlayer = LoadPlayerHandle(handles, handleId, 1)
+    local function timerFunctionSelect(triggerUnit)
+        printDebug('TimerFunctionSelect: ' .. GetUnitName(triggerUnit))
+        local triggerPlayer = GetOwningPlayer(triggerUnit)
         if playerSpeakerUnit ~= nil and not isUnitSpeakingForPlayer(triggerUnit) then
             endUnitTalkPortrait(playerSpeakerUnit)
         end
-        local hasControl = hasControl(triggerPlayer, triggerUnit)
-        if (hasControl and IsUnitMainSelectedUnitForPlayer(triggerUnit) and areUnitSoundsEnabled(triggerUnit)) then
-            if not (playerSpeakerUnit == triggerUnit and isUnitSpeakingForPlayer(playerSpeakerUnit)) then
-                if (isPlayerSelectionPissed(triggerUnit)) then
-                    playNextPissedSound(triggerPlayer, triggerUnit)
-                else
-                    playRandomSound(unitSoundSets, triggerPlayer, triggerUnit, SOUND_WHAT)
-                end
+
+        if (playerHasControl(triggerPlayer, triggerUnit)
+                and isUnitMainSelectedUnitForPlayer(triggerUnit)
+                and areUnitSoundsEnabled(triggerUnit)) then
+            if isAnyUnitSpeakingForPlayer() then
+                return
+            end
+
+            if (isPlayerSelectionPissed(triggerUnit)) then
+                playNextPissedSound(triggerPlayer, triggerUnit)
+            else
+                playRandomSound(unitSoundSets, triggerPlayer, triggerUnit, SOUND_WHAT)
             end
         end
-        triggerUnit = nil
-        triggerPlayer = nil
-        FlushChildHashtable(handles, handleId)
-        PauseTimer(expiredTimer)
-        DestroyTimer(expiredTimer)
-        expiredTimer = nil
     end
 
     local function triggerActionSelect()
-        printDebug('TriggerActionSelect')
-        local whichTimer = CreateTimer()
-        local handleId = GetHandleId(whichTimer)
-        SaveUnitHandle(handles, handleId, 0, GetTriggerUnit())
-        SavePlayerHandle(handles, handleId, 1, GetTriggerPlayer())
+        local unit = GetTriggerUnit()
+        printDebug('TriggerActionSelect: ' .. GetUnitName(unit))
         --  some delay to determine the main selected unit
-        TimerStart(whichTimer, 0.0, false, timerFunctionSelect)
+        SimpleUtils.timed(0.0, function()
+            timerFunctionSelect(unit)
+        end)
     end
 
     local function triggerConditionDeselect()
@@ -454,19 +449,20 @@ do
         return false
     end
 
-    --  GetMainSelectedUnitForPlayer can only be used in a trigger action not trigger condition
     local function triggerActionOrder()
         local triggerUnit = GetTriggerUnit()
         local triggerUnitTypeId = GetUnitTypeId(triggerUnit)
         local orderId = GetIssuedOrderId()
-        printDebug("TriggerActionOrder " .. GetUnitName(triggerUnit) .. ": " .. tostring(orderId))
+        printDebug("TriggerActionOrder: " .. GetUnitName(triggerUnit) .. ", " .. tostring(orderId) .. ", " .. OrderId2String(orderId))
         local slotPlayer = GetLocalPlayer()
-        if (hasControl(slotPlayer, triggerUnit)
-                and IsUnitMainSelectedUnitForPlayer(triggerUnit)
+        if (playerHasControl(slotPlayer, triggerUnit)
+                and isUnitMainSelectedUnitForPlayer(triggerUnit)
                 and areUnitSoundsEnabled(triggerUnit)) then
-            if (orderId == ORDER_ID_ATTACK or orderId == ORDER_ID_ATTACK_ONCE or (orderId == ORDER_ID_SMART and not (GetOrderTargetUnit() == nil) and IsUnitEnemy(GetOrderTargetUnit(), slotPlayer))) then
+            if (orderId == ORDER_ID_ATTACK or orderId == ORDER_ID_ATTACK_ONCE or (orderId == ORDER_ID_SMART and GetOrderTargetUnit() ~= nil and IsUnitEnemy(GetOrderTargetUnit(), slotPlayer))) then
                 resetCounters()
-                if (unitSoundSets:exists(triggerUnitTypeId, SOUND_WARCRY) and IsUnitType(GetOrderTargetUnit(), UNIT_TYPE_HERO) and GetRandomInt(0, 100) <= WARCRY_CHANCE) then
+                if (unitSoundSets:exists(triggerUnitTypeId, SOUND_WARCRY)
+                        and IsUnitType(GetOrderTargetUnit(), UNIT_TYPE_HERO)
+                        and GetRandomInt(0, 100) <= WARCRY_CHANCE) then
                     -- chance for Warcry if the target is a hero
                     playRandomSound(unitSoundSets, slotPlayer, triggerUnit, SOUND_WARCRY)
                 else
@@ -527,15 +523,10 @@ do
     end
 
     local function triggerConditionAbility()
-        return hasControl(GetLocalPlayer(), GetTriggerUnit())
+        return playerHasControl(GetLocalPlayer(), GetTriggerUnit())
     end
 
-    local function triggerAbilityFunction()
-        local expiredTimer = GetExpiredTimer()
-        local handleId = GetHandleId(expiredTimer)
-        local caster = LoadUnitHandle(abilityHandles, handleId, 0)
-        local ability = LoadAbilityHandle(abilityHandles, handleId, 1)
-        local abilityId = BlzGetAbilityId(ability)
+    local function triggerAbilityFunction(caster, abilityId)
         printDebug("TriggerAbilityFunction " .. GetUnitName(caster) .. ": " .. tostring(abilityId))
         playAbilitySound(caster, abilityId)
     end
@@ -546,13 +537,10 @@ do
         if not areUnitSoundsEnabled(caster) then
             return
         end
-        local ability = BlzGetUnitAbility(caster, abilityId)
         printDebug("TriggerActionAbility " .. GetUnitName(caster) .. ": " .. tostring(abilityId))
-        local whichTimer = CreateTimer()
-        local handleId = GetHandleId(whichTimer)
-        SaveUnitHandle(abilityHandles, handleId, 0, caster)
-        SaveAbilityHandle(abilityHandles, handleId, 1, ability)
-        TimerStart(whichTimer, 0.0, false, triggerAbilityFunction)
+        SimpleUtils.timed(0.0, function()
+            triggerAbilityFunction(caster, abilityId)
+        end)
     end
 
     local function initUnitSoundSets()
@@ -561,7 +549,7 @@ do
         ForForce(allies, function()
             local player = GetEnumPlayer()
             local playerId = GetPlayerId(player)
-            playerSoundTimer = CreateTimer()
+
             printDebug("Registering actions for player " .. tostring(playerId) .. "...")
             if (GetPlayerController(player) == MAP_CONTROL_USER) then
                 TriggerRegisterPlayerUnitEventSimple(selectionTrigger, player, EVENT_PLAYER_UNIT_SELECTED)
