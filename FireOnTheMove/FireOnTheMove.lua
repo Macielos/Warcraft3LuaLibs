@@ -1,4 +1,5 @@
 if Debug then Debug.beginFile "FireOnTheMove" end
+--MUST BE PUT AFTER UNIT TRACKER
 do
     TrackedUnitState = {
         rangeTrigger = nil,
@@ -101,16 +102,19 @@ do
             acquireTarget(trackedUnitState, unit, trackedUnitState.lastAttackTarget)
             return
         end
-        local queueSize = SimpleUtils.tableLength(trackedUnitState.targetQueue)
-        for i, target in ipairs(trackedUnitState.targetQueue) do
-            printDebugTargetQueue("checking queue pos: " .. tostring(i) .. " of " .. tostring(queueSize))
+
+        local targetQueue = trackedUnitState.targetQueue
+
+        local i=1
+        while i <= #targetQueue do
+            local target = targetQueue[i]
+            printDebugTargetQueue("checking queue pos: " .. tostring(i) .. " of " .. tostring(#targetQueue))
             if isAliveAndInRange(unit, target, range) then
                 acquireTarget(trackedUnitState, unit, target)
                 return
             else
                 GroupRemoveUnit(trackedUnitState.targetGroup, target)
-                table.remove(trackedUnitState.targetQueue, i)
-                i = i - 1
+                table.remove(targetQueue, i)
                 printDebugTargetQueue("filtered out target: " .. GetUnitName(target))
             end
         end
@@ -132,24 +136,22 @@ do
 
         local sourceX = GetUnitX(sourceUnit)
         local sourceY = GetUnitY(sourceUnit)
-        local sourceZ = UnitUtils:getUnitZ(sourceUnit)
+        local sourceZ = 0
 
         local hasFreeFlightTime = unitTypeInfo.freeFlightTime ~= nil and unitTypeInfo.freeFlightTime > 0
 
         local angle
         local targetX
         local targetY
-        local targetZ
+        local targetZ = 60
 
         if hasFreeFlightTime then
             angle = GetUnitFacing(sourceUnit)
             targetX = sourceX + unitTypeInfo.freeFlightTime * missileSpeed * 100 * Cos(angle)
             targetY = sourceY + unitTypeInfo.freeFlightTime * missileSpeed * 100 * Sin(angle)
-            targetZ = 100 --TODO
         else
             targetX = GetUnitX(targetUnit)
             targetY = GetUnitY(targetUnit)
-            targetZ = UnitUtils:getUnitZ(targetUnit)
             angle = SimpleUtils.angleBetweenCoordinates(sourceX, sourceY, targetX, targetY)
         end
 
@@ -158,6 +160,8 @@ do
             sourceY = sourceY + (projectileLaunchOffset.y or 0) * Sin(angle)
             sourceZ = sourceZ + (projectileLaunchOffset.z or 0)
         end
+
+        print("FireOnTheMove height: " .. tostring(sourceZ) .. " -> " .. tostring(targetZ))
 
         printDebug(GetUnitName(sourceUnit) .. " firing at " .. GetUnitName(targetUnit))
 
@@ -207,11 +211,16 @@ do
         local unitState = FireOnTheMove.trackedUnitStates[unitToTrack]
         local currentOrder = GetUnitCurrentOrder(unitToTrack)
         if (currentOrder ~= ORDER_ID_MOVE and currentOrder ~= ORDER_ID_SMART) or GetOrderTargetUnit() ~= nil then
-            printDebug("unit firing on the move changed order, reseting")
+            printDebug("unit firing on the move changed order, resetting")
             ResetUnitLookAt(unitToTrack)
             PauseTimer(unitState.fireTimer)
             return
         end
+        local unitTypeInfo = FireOnTheMove.unitTypes[GetUnitTypeId(unitToTrack)]
+        if BlzGetUnitWeaponBooleanField(unitToTrack, UNIT_WEAPON_BF_ATTACKS_ENABLED, unitTypeInfo.attackIndex) ~= true then
+            return
+        end
+
         local typeId = GetUnitTypeId(unitToTrack)
         local target = unitState.currentTarget
         local range = getRange(unitToTrack)
@@ -247,6 +256,9 @@ do
     end
 
     local function registerTarget(unit, target)
+        if unit == target then
+            return
+        end
         local trackedUnitState = FireOnTheMove.trackedUnitStates[unit]
         --printDebug("registerTarget: " .. GetUnitName(unit) .. ", " .. GetUnitName(target) .. ", targets: " .. CountUnitsInGroup(trackedUnitState.targetGroup))
         if IsUnitGroupEmptyBJ(trackedUnitState.targetGroup) or IsUnitGroupDeadBJ(trackedUnitState.targetGroup) then
@@ -266,7 +278,7 @@ do
         TriggerRegisterUnitInRangeSimple(rangeTrigger, getRange(unitToTrack), unitToTrack)
         TriggerAddCondition(rangeTrigger, Condition(function()
             local result = shouldRegisterTarget(unitToTrack, GetTriggerUnit())
-            --printDebug("shouldRegisterTarget(" .. GetUnitName(GetTriggerUnit()) .. "): " .. tostring(result))
+            printDebugTargetQueue("shouldRegisterTarget(" .. GetUnitName(GetTriggerUnit()) .. "): " .. tostring(result))
             return result
         end))
         TriggerAddAction(rangeTrigger, function()
@@ -317,7 +329,7 @@ do
     end
 
     local function validateUnitType(key, unitTypeInfo)
-        assert(unitTypeInfo.targetGround == true or unitTypeInfo.targetAir == true, 'Fire on the move: unit must attack ground, air or both')
+        assert(unitTypeInfo.targetGround == true or unitTypeInfo.targetAir == true, 'Fire on the move: unit ' .. tostring(key) .. ' must attack ground, air or both')
     end
 
     local function validateUnitTypes(unitTypes)
@@ -326,19 +338,19 @@ do
         end
     end
 
+    UnitTracker:register('fireOnTheMove', canFireOnTheMove)
+
     function FireOnTheMove:init(unitTypes, abilitiesAllowingFireOnTheMove)
         validateUnitTypes(unitTypes)
         self.unitTypes = unitTypes
         self.abilitiesAllowingFireOnTheMove = abilitiesAllowingFireOnTheMove
+    end
 
+    OnInit.trig(function()
         SimpleUtils.newClass(TrackedUnitState)
         SimpleUtils.newClass(UnitTypeFireOnTheMoveInfo)
 
-        local group = UnitUtils:groupAllUnitsMatchingFilter(Filter(function()
-            return canFireOnTheMove(GetFilterUnit())
-        end))
-        UnitUtils:forEachUnit(group, trackUnit)
-        DestroyGroup(group)
+        UnitUtils:forEachUnit(UnitUtils:getInitialUnitsFiringOnTheMove(), trackUnit)
 
         local trainTrigger = CreateTrigger()
         TriggerRegisterAnyUnitEventBJ(trainTrigger, EVENT_PLAYER_UNIT_TRAIN_FINISH)
@@ -384,6 +396,6 @@ do
         end)
 
         printDebug("FireOnTheMove OnInit.final DONE")
-    end
+    end)
 end
 if Debug then Debug.endFile() end

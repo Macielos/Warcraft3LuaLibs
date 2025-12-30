@@ -34,9 +34,7 @@ do
         [1] = ABILITY_FIRE_ON_THE_MOVE
     }
 
-    OnInit.final(function()
-        --if you dont want to make fire on the move require any ability, just replace line below with: FireOnTheMove:init(fireOnTheMoveUnitTypes, nil)
-        FireOnTheMove:init(fireOnTheMoveUnitTypes, abilitiesAllowingFireOnTheMove)
-    end)
+    --if you dont want to make fire on the move require any ability, just replace line below with: FireOnTheMove:init(fireOnTheMoveUnitTypes, nil)
+    FireOnTheMove:init(fireOnTheMoveUnitTypes, abilitiesAllowingFireOnTheMove)
 end
 if Debug then Debug.endFile() end
