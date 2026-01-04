@@ -485,14 +485,20 @@ do
         if self.currentChoices then
             if isValidChoice() then
                 printDebug("currentChoices:onChoice() - valid choice")
-                if self.currentChoices[self.currentChoiceIndex].onChoice then
-                    self.currentChoices[self.currentChoiceIndex]:onChoice()
+
+                local choice = self.currentChoices[self.currentChoiceIndex]
+
+                if choice.onChoice then
+                    choice:onChoice()
                 end
-                if self.currentChoices[self.currentChoiceIndex].onChoiceGoTo then
-                    ScreenplaySystem:goTo(self.currentChoices[self.currentChoiceIndex].onChoiceGoTo)
+                if choice.onChoiceGoTo then
+                    ScreenplaySystem:goTo(choice.onChoiceGoTo)
+                end
+                if choice.onChoiceGoToFunc then
+                    ScreenplaySystem:goTo(choice.onChoiceGoToFunc())
                 end
 
-                self.currentChoices[self.currentChoiceIndex].chosen = true
+                choice.chosen = true
                 self.currentChoices = nil
                 self.currentChoiceIndex = 0
                 self.currentChain:playNextInternal()
@@ -830,7 +836,7 @@ do
     function ScreenplaySystem.chain:getChoiceForRewind(index)
         if self[index].choices then
             for i, choice in ipairs(self[index].choices) do
-                if choice.chooseOnRewind == true and choice.onChoiceGoTo ~= nil then
+                if choice.chooseOnRewind == true and (choice.onChoiceGoTo ~= nil or choice.onChoiceGoToFunc ~= nil) then
                     return i
                 end
             end
@@ -844,7 +850,13 @@ do
 
     function ScreenplaySystem.chain:getNextIndexForRewind(index)
         if self:isCurrentChoiceRewindable(index) then
-            return self[index].choices[self:getChoiceForRewind(index)].onChoiceGoTo
+            local choice = self[index].choices[self:getChoiceForRewind(index)]
+            if choice.onChoiceGoTo then
+                return choice.onChoiceGoTo
+            end
+            if choice.onChoiceGoToFunc then
+                return choice.onChoiceGoToFunc()
+            end
         end
         return self:getNextIndexForIndex(index)
     end
@@ -977,6 +989,7 @@ do
                     choice.text = choiceBuildFrom.text
                     choice.onChoice = choiceBuildFrom.onChoice
                     choice.onChoiceGoTo = choiceBuildFrom.onChoiceGoTo
+                    choice.onChoiceGoToFunc = choiceBuildFrom.onChoiceGoToFunc
                     choice.chooseOnRewind = choiceBuildFrom.chooseOnRewind
                     if not (choiceBuildFrom.visible == nil) then
                         choice.visible = choiceBuildFrom.visible

@@ -133,6 +133,7 @@ do
         local attackType = ConvertAttackType(BlzGetUnitWeaponIntegerField(sourceUnit, UNIT_WEAPON_IF_ATTACK_ATTACK_TYPE, attackIndex))
         local fireEffectPath = unitTypeInfo.fireEffectPath
         local projectileLaunchOffset = unitTypeInfo.projectileLaunchOffset
+        local onHit = unitTypeInfo.onHit
 
         local sourceX = GetUnitX(sourceUnit)
         local sourceY = GetUnitY(sourceUnit)
@@ -161,7 +162,7 @@ do
             sourceZ = sourceZ + (projectileLaunchOffset.z or 0)
         end
 
-        print("FireOnTheMove height: " .. tostring(sourceZ) .. " -> " .. tostring(targetZ))
+        --printDebug("FireOnTheMove height: " .. tostring(sourceZ) .. " -> " .. tostring(targetZ))
 
         printDebug(GetUnitName(sourceUnit) .. " firing at " .. GetUnitName(targetUnit))
 
@@ -174,15 +175,14 @@ do
         if not hasFreeFlightTime then
             missile.target = targetUnit
         end
-        missile.collision = 16
+        --missile.collision = 16
 
-        missile.onHit = function(unit)
-            if unit ~= targetUnit then
-                printDebug("hit something else (" .. GetUnitName(unit) .. "), skipping...")
-                return false
-            end
+        missile.onRemove = function()
             UnitDamageTarget(sourceUnit, targetUnit, damage, true, true, attackType, DAMAGE_TYPE_NORMAL, nil)
             printDebug("fire on the move dmg: " .. tostring(damage))
+            if onHit then
+                onHit(sourceUnit, targetUnit)
+            end
             return true
         end
 

@@ -16,6 +16,7 @@ end
 
 function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
     ScreenplayUtils.clearInterpolation()
+    SkippableTimers:skip()
     CameraSetupApply(cameraFrom, true)
     local cameraFromX = CameraSetupGetDestPositionX(cameraFrom)
     local cameraFromY = CameraSetupGetDestPositionY(cameraFrom)
@@ -32,6 +33,7 @@ function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
     SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, cameraFromDistance, 0.0)
 
     CameraSetupApplyForceDuration(cameraTo, true, duration)
+    --SetCameraField(CAMERA_FIELD_FARZ, 20000, 0.0)
     local timer = CreateTimer()
     ScreenplaySystem.cameraInterpolationTimer = timer
     local durationInt = math.floor(duration)
@@ -41,6 +43,7 @@ function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
         durationLeft = durationLeft - 1
         if durationLeft <= 0 then
             CameraSetupApplyForceDuration(cameraTo, true, 9999)
+            --SetCameraField(CAMERA_FIELD_FARZ, 20000, 0.0)
             SimpleUtils.releaseTimer(timer)
         else
             local interpolatedX = ScreenplayUtils.interpolate(cameraFromX, cameraToX, (durationInt - durationLeft) / durationInt)
@@ -71,6 +74,7 @@ function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
             end
             if fixed == true then
                 CameraSetupApplyForceDuration(cameraTo, true, durationLeft)
+                --SetCameraField(CAMERA_FIELD_FARZ, 20000, 0.0)
             end
         end
     end)
