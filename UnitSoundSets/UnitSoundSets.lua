@@ -17,7 +17,7 @@ do
      *   The extensions "mp3", "flac" and "wav" are used automatically.
      *
      *  You can have ANY number of What, Yes, Attack, Pissed etc. sounds.
-     *  You can add multiple sound sets for the same unit type, they will be treated additively.
+     *  You can add multiple so und sets for the same unit type, they will be treated additively.
      *  For most sound types adding order doesn't matter as they are played randomly, the only exception is Pissed
      *  sounds which always play in the same order
      *
@@ -420,7 +420,7 @@ do
             endUnitTalkPortrait(playerSpeakerUnit)
         end
 
-        if (playerHasControl(triggerPlayer, triggerUnit)
+        if (playerHasControl(GetLocalPlayer(), triggerUnit)
                 and isUnitMainSelectedUnitForPlayer(triggerUnit)
                 and areUnitSoundsEnabled(triggerUnit)) then
             if isAnyUnitSpeakingForPlayer() then
