@@ -1,0 +1,48 @@
+globals
+    player user = Player(1)
+
+endglobals
+
+function SetProperties takes nothing returns nothing
+   call CampaignAI(ZIGGURAT_1, null)
+   call SetGoldPeons(5)
+   call SetWoodPeons(3)
+   call SetPeonsRepair(true)
+   call SetSlowChopping(true)
+   call SetUnitsFlee(false)
+   call SetGroupsFlee(false)
+   call SetRandomPaths(true)
+   call SetReplacements(1, 1, 999)
+   call DoCampaignFarms(true)
+   call GroupTimedLife(true)
+   call PrintLn("Purple: Init")
+endfunction
+
+function main takes nothing returns nothing
+    local integer signal = 0
+
+    call SetProperties()
+
+    call SetBuildBase( 1, NECROPOLIS_1 )
+    call SetBuildBase( 5, ACOLYTE )
+    call SetBuildBase( 3, CRYPT )
+    call SetBuildBase( 1, GRAVEYARD )
+
+    call SetBuildUnit( 8, GHOUL )
+
+    call PrintLn("Purple: Attack 1")
+
+    call InitAssaultGroup()
+    call CampaignAttackerSimple( 8, GHOUL )
+    call SuicideOnPlayer(10, user )
+
+    loop
+        call PrintLn("Purple: Loop attack 1")
+
+        call InitAssaultGroup()
+        call CampaignAttackerSimple( 10, GHOUL )
+        call SuicideOnPlayerSafe(10, user)
+
+        call Sleep(5)
+    endloop
+endfunction

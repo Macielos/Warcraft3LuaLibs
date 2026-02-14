@@ -1,0 +1,78 @@
+globals
+    player user = Player(1)
+
+endglobals
+
+function SetProperties takes nothing returns nothing
+   call CampaignAI(ZIGGURAT_1, null)
+   call SetGoldPeons(5)
+   call SetWoodPeons(3)
+   call SetPeonsRepair(true)
+   call SetSlowChopping(true)
+   call SetUnitsFlee(false)
+   call SetGroupsFlee(false)
+   call SetRandomPaths(true)
+   call SetReplacements(1, 1, 999)
+   call DoCampaignFarms(true)
+   call GroupTimedLife(true)
+   call PrintLn("Purple: Init")
+endfunction
+
+function main takes nothing returns nothing
+    local integer signal = 0
+
+    call SetProperties()
+
+    call SetBuildBase( 1, NECROPOLIS_1 )
+    call SetBuildBase( 5, ACOLYTE )
+    call SetBuildBase( 3, CRYPT )
+    call SetBuildBase( 1, GRAVEYARD )
+    call SetBuildBase( 1, UNDEAD_ALTAR )
+    call SetBuildBase( 1, NECROPOLIS_2 )
+    call SetBuildBase( 2, DAMNED_TEMPLE )
+    call SetBuildBase( 2, SLAUGHTERHOUSE )
+    call SetBuildBase( 1, NECROPOLIS_3 )
+    call SetBuildBase( 1, SAC_PIT )
+    call SetBuildBase( 1, TOMB_OF_RELICS )
+    call SetBuildBase( 8, ZIGGURAT_1 )
+    call SetBuildBase( 6, ZIGGURAT_2 )
+    call SetBuildBase( 2, ZIGGURAT_FROST )
+
+    call SetBuildUnit( 1, DEATH_KNIGHT )
+    call SetBuildUnit( 6, GHOUL )
+    call SetBuildUnit( 8, CRYPT_FIEND )
+    call SetBuildUnit( 5, ABOMINATION )
+    call SetBuildUnit( 4, NECRO )
+    call SetBuildUnit( 4, MEAT_WAGON )
+
+    call PrintLn("Purple: Attack 1")
+
+    call InitAssaultGroup()
+    call CampaignAttackerSimple( 4, CRYPT_FIEND )
+    call CampaignAttackerSimple( 3, GHOUL )
+    call CampaignAttackerSimple( 1, ABOMINATION )
+    call SuicideOnPlayer(M5, user )
+
+    loop
+        call PrintLn("Purple: Loop attack 1")
+
+        call InitAssaultGroup()
+        call CampaignAttackerSimple( 3, GHOUL )
+        call CampaignAttackerSimple( 4, CRYPT_FIEND )
+        call CampaignAttackerSimple( 1, ABOMINATION )
+        call CampaignAttackerSimple( 3, NECRO )
+        call CampaignAttackerSimple( 2, MEAT_WAGON )
+        call SuicideOnPlayer(M6, user)
+
+        call PrintLn("Purple: Loop attack 2")
+
+        call InitAssaultGroup()
+        call CampaignAttackerSimple( 3, GHOUL )
+        call CampaignAttackerSimple( 4, CRYPT_FIEND )
+        call CampaignAttackerSimple( 2, ABOMINATION )
+        call CampaignAttackerSimple( 1, DEATH_KNIGHT )
+        call SuicideOnPlayer(M6, user)
+
+        call Sleep(5)
+    endloop
+endfunction
