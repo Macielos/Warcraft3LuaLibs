@@ -2189,6 +2189,16 @@ function SuicideOnPlayerSafe takes integer seconds, player p returns nothing
     call CommonSuicideOnPlayer(true,true,seconds,p,0,0,true)
 endfunction
 
+function SuicideOnPlayerSafeEx takes integer easy, integer med, integer hard, player p returns nothing
+    if difficulty == EASY then
+        call SuicideOnPlayerSafe(easy,p)
+    elseif difficulty == NORMAL then
+        call SuicideOnPlayerSafe(med,p)
+    else
+        call SuicideOnPlayerSafe(hard,p)
+    endif
+endfunction
+
 //====EXODUS CUSTOM FUNCTIONS 3 END====
 
 //--------------------------------------------------------------------------------------------------
