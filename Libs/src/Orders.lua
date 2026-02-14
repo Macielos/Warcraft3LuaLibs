@@ -17,5 +17,9 @@ do
     ORDER_ID_DRAIN = 852487
 
     ORDER_ID_MINE = 852278
+
+    ORDER_ID_BUILD_SKILL = 852619
+
+    ORDER_ID_CANCEL = 851976
 end
 Debug.endFile()

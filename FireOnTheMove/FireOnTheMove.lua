@@ -46,7 +46,8 @@ do
     end
 
     local function shouldRegisterTarget(unitToTrack, target)
-        if not IsUnitEnemy(target, (GetOwningPlayer(unitToTrack))) then
+        local owner = GetOwningPlayer(unitToTrack)
+        if not IsUnitEnemy(target, owner) then
             return false
         end
         local unitTypeInfo = FireOnTheMove.unitTypes[GetUnitTypeId(unitToTrack)]
@@ -54,6 +55,9 @@ do
             return false
         end
         if UnitIsSleeping(target) then
+            return false
+        end
+        if IsUnitInvisible(target, owner) then
             return false
         end
         if unitTypeInfo.targetGround == true and IsUnitType(target, UNIT_TYPE_GROUND) then
@@ -137,7 +141,7 @@ do
 
         local sourceX = GetUnitX(sourceUnit)
         local sourceY = GetUnitY(sourceUnit)
-        local sourceZ = 0
+        local sourceZ = GetUnitZ(sourceUnit)
 
         local hasFreeFlightTime = unitTypeInfo.freeFlightTime ~= nil and unitTypeInfo.freeFlightTime > 0
 
@@ -376,7 +380,9 @@ do
         local attackOrderTrigger = CreateTrigger()
         TriggerRegisterAnyUnitEventBJ(attackOrderTrigger, EVENT_PLAYER_UNIT_ISSUED_UNIT_ORDER)
         TriggerAddCondition(attackOrderTrigger, Condition(function()
-            return (GetIssuedOrderId() == ORDER_ID_ATTACK or GetIssuedOrderId() == ORDER_ID_SMART) and UnitUtils:isEnemyUnit(GetOwningPlayer(GetTriggerUnit()), GetOrderTargetUnit()) and canFireOnTheMove(GetTriggerUnit())
+            return (GetIssuedOrderId() == ORDER_ID_ATTACK or GetIssuedOrderId() == ORDER_ID_SMART)
+                    and canFireOnTheMove(GetTriggerUnit())
+                    and shouldRegisterTarget(GetTriggerUnit(), GetOrderTargetUnit())
         end))
         TriggerAddAction(attackOrderTrigger, function()
             rememberLastAttackOrderTarget(GetTriggerUnit(), GetOrderTargetUnit())
@@ -385,7 +391,8 @@ do
         local moveOrderTrigger = CreateTrigger()
         TriggerRegisterAnyUnitEventBJ(moveOrderTrigger, EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER)
         TriggerAddCondition(moveOrderTrigger, Condition(function()
-            return (GetIssuedOrderId() == ORDER_ID_MOVE or GetIssuedOrderId() == ORDER_ID_SMART) and canFireOnTheMove(GetTriggerUnit())
+            return (GetIssuedOrderId() == ORDER_ID_MOVE or GetIssuedOrderId() == ORDER_ID_SMART)
+                    and canFireOnTheMove(GetTriggerUnit())
         end))
         TriggerAddAction(moveOrderTrigger, function()
             local trackedUnitState = FireOnTheMove.trackedUnitStates[GetTriggerUnit()]

@@ -7,16 +7,16 @@ do
     local units = {} -- unit array
     local unitsCount = 0
     local selectedUnitsOrderedFilter -- filterfunc
-    
-    local debug = false
+
+    SelectionTracker = {
+        debug = false
+    }
 
     local function printDebug(msg)
-        if debug == true then
+        if SelectionTracker.debug == true then
             print(msg)
         end
     end
-
-    SelectionTracker = {}
 
     local function GetUnitOrderValue (u)
         --heroes use the handleId
