@@ -747,7 +747,7 @@ globals
     boolean build_campaign_attackers = true
 
     boolean do_debug_cheats         = false
-    boolean trace_on                = false
+    boolean trace_on                = true
     boolean zep_next_wave           = false
     boolean form_group_timeouts     = false
 
