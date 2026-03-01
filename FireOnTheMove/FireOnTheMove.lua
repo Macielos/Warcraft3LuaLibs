@@ -46,14 +46,14 @@ do
     end
 
     local function isValidTarget(unitToTrack, target)
+        if unitToTrack == target then
+            return false
+        end
         local owner = GetOwningPlayer(unitToTrack)
         if not IsUnitEnemy(target, owner) then
             return false
         end
         local unitTypeInfo = FireOnTheMove.unitTypes[GetUnitTypeId(unitToTrack)]
-        if IsUnitInGroup(target, FireOnTheMove.trackedUnitStates[unitToTrack].targetGroup) then
-            return false
-        end
         if UnitIsSleeping(target) then
             return false
         end
@@ -224,7 +224,7 @@ do
         local unitState = FireOnTheMove.trackedUnitStates[unitToTrack]
         local currentOrder = GetUnitCurrentOrder(unitToTrack)
         if not isValidOrderToFireOnTheMove(currentOrder) then
-            printDebug("unit firing on the move changed order, resetting")
+            printDebug("order no longer valid to fire on the move: " .. tostring(currentOrder) .. "[" .. OrderId2String(currentOrder) .. "]")
             ResetUnitLookAt(unitToTrack)
             PauseTimer(unitState.fireTimer)
             return
@@ -244,7 +244,7 @@ do
         if target ~= nil then
             fire(unitToTrack, target, FireOnTheMove.unitTypes[typeId])
         else
-            printDebug("no target in range to fire on the move, reseting")
+            printDebug("no target in range to continue fire on the move")
             ResetUnitLookAt(unitToTrack)
             PauseTimer(unitState.fireTimer)
         end
@@ -269,9 +269,6 @@ do
     end
 
     local function registerTarget(unit, target)
-        if unit == target then
-            return
-        end
         local trackedUnitState = FireOnTheMove.trackedUnitStates[unit]
         --printDebug("registerTarget: " .. GetUnitName(unit) .. ", " .. GetUnitName(target) .. ", targets: " .. CountUnitsInGroup(trackedUnitState.targetGroup))
         if IsUnitGroupEmptyBJ(trackedUnitState.targetGroup) or IsUnitGroupDeadBJ(trackedUnitState.targetGroup) then
@@ -286,12 +283,20 @@ do
         end
     end
 
+    local function isInTargetGroup(unitToTrack, target)
+        return IsUnitInGroup(target, FireOnTheMove.trackedUnitStates[unitToTrack].targetGroup)
+    end
+
     local function createRangeTrigger(unitToTrack)
         local rangeTrigger = CreateTrigger()
         TriggerRegisterUnitInRangeSimple(rangeTrigger, getRange(unitToTrack), unitToTrack)
         TriggerAddCondition(rangeTrigger, Condition(function()
+            if isInTargetGroup(unitToTrack, GetTriggerUnit()) then
+                --printDebugTargetQueue("shouldRegisterTarget(" .. GetUnitName(GetTriggerUnit()) .. "): [already in queue] " .. tostring(false))
+                return false
+            end
             local result = isValidTarget(unitToTrack, GetTriggerUnit())
-            printDebugTargetQueue("shouldRegisterTarget(" .. GetUnitName(GetTriggerUnit()) .. "): " .. tostring(result))
+            --printDebugTargetQueue("shouldRegisterTarget(" .. GetUnitName(GetTriggerUnit()) .. "): " .. tostring(result))
             return result
         end))
         TriggerAddAction(rangeTrigger, function()

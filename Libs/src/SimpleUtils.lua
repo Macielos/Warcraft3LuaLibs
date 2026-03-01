@@ -1,6 +1,6 @@
 if Debug then Debug.beginFile "SimpleUtils" end
 SimpleUtils = {
-    globalDebug = true,
+    globalDebug = false,
     debug = false,
     debugTime = false,
     timedCalls = {}
