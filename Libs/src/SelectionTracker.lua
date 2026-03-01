@@ -13,8 +13,8 @@ do
     }
 
     local function printDebug(msg)
-        if SelectionTracker.debug == true then
-            print(msg)
+        if SelectionTracker.debug and SimpleUtils.globalDebug then
+            print("[SELECTION TRACKER] " .. msg)
         end
     end
 

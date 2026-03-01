@@ -32,8 +32,8 @@ do
     }
 
     local function printDebug(msg)
-        if FakeBars.debug then
-            print(msg)
+        if FakeBars.debug and SimpleUtils.globalDebug then
+            print("[FAKE BARS] " .. msg)
         end
     end
 

@@ -43,8 +43,8 @@ do
     end
 
     local function printDebug(msg)
-        if ScreenplaySystem.debug then
-            print(msg)
+        if ScreenplaySystem.debug and SimpleUtils.globalDebug then
+            print("[SCREENPLAY FACTORY] " .. msg)
         end
     end
 

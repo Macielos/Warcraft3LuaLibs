@@ -684,6 +684,9 @@ globals
     constant integer UPKEEP_TIER1       = 50
     constant integer UPKEEP_TIER2       = 80
 
+    constant integer BUILD_LOOP_INTERVAL = 8
+    constant integer BUILD_LOOP_INTERVAL_HARD = 2
+
     //--------------------------------------------------------------------
 
     player  ai_player
@@ -1550,7 +1553,11 @@ function BuildLoop takes nothing returns nothing
     call StaggerSleep(1,2)
     loop
         call OneBuildLoop()
-        call Sleep(2)
+        if difficulty == HARD then
+            call Sleep(BUILD_LOOP_INTERVAL_HARD)
+        else
+            call Sleep(BUILD_LOOP_INTERVAL)
+        endif
     endloop
 endfunction
 

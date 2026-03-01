@@ -115,9 +115,17 @@ do
         debug = false
     }
 
+    function UnitSoundSets:get()
+        return unitSoundSets
+    end
+
+    function UnitSoundSets:getForAbilities()
+        return unitAbilitySoundSets
+    end
+
     local function printDebug(msg)
-        if UnitSoundSets.debug then
-            print(msg)
+        if UnitSoundSets.debug and SimpleUtils.globalDebug then
+            print("[UNIT SOUND SETS] " .. msg)
         end
     end
 
@@ -127,7 +135,7 @@ do
 
     local function isUnitMainSelectedUnitForPlayer (whichUnit)
         local mainSelected = SelectionTracker:getMainForLocalPlayer()
-        printDebug("Main selected " .. GetUnitName(mainSelected))
+        --printDebug("Main selected " .. GetUnitName(mainSelected))
         return mainSelected ~= nil and mainSelected == whichUnit
     end
 
@@ -453,7 +461,7 @@ do
         local triggerUnit = GetTriggerUnit()
         local triggerUnitTypeId = GetUnitTypeId(triggerUnit)
         local orderId = GetIssuedOrderId()
-        printDebug("TriggerActionOrder: " .. GetUnitName(triggerUnit) .. ", " .. tostring(orderId) .. ", " .. OrderId2String(orderId))
+        --printDebug("TriggerActionOrder: " .. GetUnitName(triggerUnit) .. ", " .. tostring(orderId) .. ", " .. OrderId2String(orderId))
         local slotPlayer = GetLocalPlayer()
         if (playerHasControl(slotPlayer, triggerUnit)
                 and isUnitMainSelectedUnitForPlayer(triggerUnit)

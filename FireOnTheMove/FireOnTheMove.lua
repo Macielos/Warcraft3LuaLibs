@@ -30,22 +30,22 @@ do
         abilitiesAllowingFireOnTheMove = {},
         trackedUnitStates = {},
         debug = false,
-        debugTargetQueue = false
+        queueDebug = false
     }
 
     local function printDebugTargetQueue(msg)
-        if FireOnTheMove.debugTargetQueue then
-            print(msg)
+        if FireOnTheMove.queueDebug and SimpleUtils.globalDebug then
+            print("[FIRE ON THE MOVE QUEUE] " .. msg)
         end
     end
 
     local function printDebug(msg)
-        if FireOnTheMove.debug then
-            print(msg)
+        if FireOnTheMove.debug and SimpleUtils.globalDebug then
+            print("[FIRE ON THE MOVE] " .. msg)
         end
     end
 
-    local function shouldRegisterTarget(unitToTrack, target)
+    local function isValidTarget(unitToTrack, target)
         local owner = GetOwningPlayer(unitToTrack)
         if not IsUnitEnemy(target, owner) then
             return false
@@ -69,8 +69,11 @@ do
         return false
     end
 
-    local function isAliveAndInRange(unit, target, range)
-        return unit ~= nil and UnitAlive(target) and SimpleUtils.distanceBetweenCoordinates(GetUnitX(unit), GetUnitY(unit), GetUnitX(target), GetUnitY(target)) <= range + 50.0
+    local function isAliveAndInRangeAndValid(unit, target, range)
+        return unit ~= nil
+                and UnitAlive(target)
+                and SimpleUtils.distanceBetweenCoordinates(GetUnitX(unit), GetUnitY(unit), GetUnitX(target), GetUnitY(target)) <= range + 50.0
+                and isValidTarget(unit, target)
     end
 
     local function acquireTarget(trackedUnitState, unit, target)
@@ -102,7 +105,7 @@ do
     local function findAndAcquireNextTarget(trackedUnitState, unit)
         printDebugTargetQueue("acquireOrFilterOutTarget: " .. GetUnitName(unit))
         local range = getRange(unit)
-        if isAliveAndInRange(unit, trackedUnitState.lastAttackTarget, range) then
+        if isAliveAndInRangeAndValid(unit, trackedUnitState.lastAttackTarget, range) then
             acquireTarget(trackedUnitState, unit, trackedUnitState.lastAttackTarget)
             return
         end
@@ -113,7 +116,7 @@ do
         while i <= #targetQueue do
             local target = targetQueue[i]
             printDebugTargetQueue("checking queue pos: " .. tostring(i) .. " of " .. tostring(#targetQueue))
-            if isAliveAndInRange(unit, target, range) then
+            if isAliveAndInRangeAndValid(unit, target, range) then
                 acquireTarget(trackedUnitState, unit, target)
                 return
             else
@@ -141,7 +144,7 @@ do
 
         local sourceX = GetUnitX(sourceUnit)
         local sourceY = GetUnitY(sourceUnit)
-        local sourceZ = GetUnitZ(sourceUnit)
+        local sourceZ = GetUnitFlyHeight(sourceUnit)
 
         local hasFreeFlightTime = unitTypeInfo.freeFlightTime ~= nil and unitTypeInfo.freeFlightTime > 0
 
@@ -211,10 +214,16 @@ do
         end
     end
 
+    local function isValidOrderToFireOnTheMove(order)
+        return order == ORDER_ID_MOVE
+                or order == ORDER_ID_SMART
+                or order == ORDER_ID_PATROL
+    end
+
     local function fireRoutine(unitToTrack)
         local unitState = FireOnTheMove.trackedUnitStates[unitToTrack]
         local currentOrder = GetUnitCurrentOrder(unitToTrack)
-        if (currentOrder ~= ORDER_ID_MOVE and currentOrder ~= ORDER_ID_SMART) or GetOrderTargetUnit() ~= nil then
+        if not isValidOrderToFireOnTheMove(currentOrder) then
             printDebug("unit firing on the move changed order, resetting")
             ResetUnitLookAt(unitToTrack)
             PauseTimer(unitState.fireTimer)
@@ -228,7 +237,7 @@ do
         local typeId = GetUnitTypeId(unitToTrack)
         local target = unitState.currentTarget
         local range = getRange(unitToTrack)
-        if not (isAliveAndInRange(unitToTrack, target, range)) then
+        if not isAliveAndInRangeAndValid(unitToTrack, target, range) then
             findAndAcquireNextTarget(unitState, unitToTrack)
         end
         target = unitState.currentTarget
@@ -281,7 +290,7 @@ do
         local rangeTrigger = CreateTrigger()
         TriggerRegisterUnitInRangeSimple(rangeTrigger, getRange(unitToTrack), unitToTrack)
         TriggerAddCondition(rangeTrigger, Condition(function()
-            local result = shouldRegisterTarget(unitToTrack, GetTriggerUnit())
+            local result = isValidTarget(unitToTrack, GetTriggerUnit())
             printDebugTargetQueue("shouldRegisterTarget(" .. GetUnitName(GetTriggerUnit()) .. "): " .. tostring(result))
             return result
         end))
@@ -382,7 +391,7 @@ do
         TriggerAddCondition(attackOrderTrigger, Condition(function()
             return (GetIssuedOrderId() == ORDER_ID_ATTACK or GetIssuedOrderId() == ORDER_ID_SMART)
                     and canFireOnTheMove(GetTriggerUnit())
-                    and shouldRegisterTarget(GetTriggerUnit(), GetOrderTargetUnit())
+                    and isValidTarget(GetTriggerUnit(), GetOrderTargetUnit())
         end))
         TriggerAddAction(attackOrderTrigger, function()
             rememberLastAttackOrderTarget(GetTriggerUnit(), GetOrderTargetUnit())
@@ -391,8 +400,7 @@ do
         local moveOrderTrigger = CreateTrigger()
         TriggerRegisterAnyUnitEventBJ(moveOrderTrigger, EVENT_PLAYER_UNIT_ISSUED_POINT_ORDER)
         TriggerAddCondition(moveOrderTrigger, Condition(function()
-            return (GetIssuedOrderId() == ORDER_ID_MOVE or GetIssuedOrderId() == ORDER_ID_SMART)
-                    and canFireOnTheMove(GetTriggerUnit())
+            return isValidOrderToFireOnTheMove(GetIssuedOrderId()) and canFireOnTheMove(GetTriggerUnit())
         end))
         TriggerAddAction(moveOrderTrigger, function()
             local trackedUnitState = FireOnTheMove.trackedUnitStates[GetTriggerUnit()]

@@ -1,8 +1,10 @@
 if Debug then Debug.beginFile "SimpleUtils" end
-SimpleUtils = {}
-SimpleUtils.debug = false
-SimpleUtils.debugTime = false
-SimpleUtils.timedCalls = {}
+SimpleUtils = {
+    globalDebug = true,
+    debug = false,
+    debugTime = false,
+    timedCalls = {}
+}
 
 function SimpleUtils.debugFunc(func, name)
     return func()
@@ -43,7 +45,7 @@ function SimpleUtils.newClass(t, constructor)
     t.destroy = function()
         t.lookupt[t] = nil
     end
-    if SimpleUtils.debug then
+    if SimpleUtils.debug and SimpleUtils.globalDebug then
         print("made new class for " .. tostring(t))
     end
 end

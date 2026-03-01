@@ -95,8 +95,8 @@ ScreenplaySystem.enqueuedScene = {
 
 do
     local function printDebug(msg)
-        if ScreenplaySystem.debug then
-            print(msg)
+        if ScreenplaySystem.debug and SimpleUtils.globalDebug then
+            print("[SCREENPLAY SYSTEM] " .. msg)
         end
     end
 
@@ -670,7 +670,9 @@ do
                 SimpleUtils.releaseTimer(timer)
                 if ScreenplaySystem.currentVariantConfig.autoMoveNext == true then
                     ScreenplaySystem.autoplayTimer = SimpleUtils.timed(delay, function()
-                        ScreenplaySystem.currentChain:playNext()
+                        if ScreenplaySystem:isActive() then
+                            ScreenplaySystem.currentChain:playNext()
+                        end
                     end)
                 end
             end

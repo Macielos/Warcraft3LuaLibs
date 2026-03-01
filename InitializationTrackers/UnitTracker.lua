@@ -4,7 +4,14 @@ do
         trackedGroupsAndConditions = {},
         trackedGroupsAndConditionsByName = {},
         calls = 0,
+        debug = true,
     }
+
+    local function printDebug(msg)
+        if UnitTracker.debug and SimpleUtils.globalDebug then
+            print("[UNIT TRACKER] " .. msg)
+        end
+    end
 
     function UnitTracker:register(name, condition)
         assert(self.trackedGroupsAndConditions[name] == nil, 'UnitTracker: group ' .. name .. ' already defined')
@@ -17,7 +24,7 @@ do
         }
         table.insert(self.trackedGroupsAndConditions, object)
         self.trackedGroupsAndConditionsByName[name] = object
-        print('Registered condition ' .. name)
+        printDebug('Registered condition ' .. name)
     end
 
     function UnitTracker:getTrackedUnitGroup(name)
@@ -27,12 +34,14 @@ do
     end
 
     local function track(unit)
-        for i, trackedGroupAndCondition in ipairs(UnitTracker.trackedGroupsAndConditions) do
-            if not IsUnitInGroup(unit, trackedGroupAndCondition.group) and trackedGroupAndCondition.condition(unit) == true then
-                GroupAddUnit(trackedGroupAndCondition.group, unit)
+        if unit ~= nil then
+            for i, trackedGroupAndCondition in ipairs(UnitTracker.trackedGroupsAndConditions) do
+                if not IsUnitInGroup(unit, trackedGroupAndCondition.group) and trackedGroupAndCondition.condition(unit) == true then
+                    GroupAddUnit(trackedGroupAndCondition.group, unit)
+                end
             end
+            UnitTracker.calls = UnitTracker.calls + 1
         end
-        UnitTracker.calls = UnitTracker.calls + 1
         return unit
     end
 
