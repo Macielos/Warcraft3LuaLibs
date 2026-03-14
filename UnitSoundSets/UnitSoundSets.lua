@@ -105,6 +105,8 @@ do
     local deathTrigger = CreateTrigger()
     local abilityCastTrigger = CreateTrigger()
 
+    local customConditions = {}
+
     --  avoid reference leaks
     local allies = CreateForce()          --force
 
@@ -114,6 +116,11 @@ do
     UnitSoundSets = {
         debug = false
     }
+
+    function UnitSoundSets:addCustomCondition(condition)
+        assert(type(condition) == 'function', 'Custom condition for unit sound sets must be a function that returns bool!')
+        table.insert(customConditions, condition)
+    end
 
     function UnitSoundSets:get()
         return unitSoundSets
@@ -222,7 +229,15 @@ do
     -- =============================================================================
 
     local function areUnitSoundsEnabled(unit)
-        return not (bj_cineModeAlreadyIn == true or IsUnitPaused(unit) or UnitIsSleeping(unit))
+        if bj_cineModeAlreadyIn == true or IsUnitPaused(unit) or UnitIsSleeping(unit) then
+            return false
+        end
+        for i, condition in ipairs(customConditions) do
+            if condition() == false then
+                return false
+            end
+        end
+        return true
     end
 
     local function playerHasControl(whichPlayer, whichUnit)
