@@ -137,7 +137,9 @@ do
 
     local function playCurrentItem()
         --can't join choices with delayText
-        ScreenplaySystem:currentItem():play()
+        if ScreenplaySystem:isActive() then
+            ScreenplaySystem:currentItem():play()
+        end
     end
 
     local function refreshFrames()
@@ -163,9 +165,8 @@ do
         ScreenplaySystem.consoleBackdrop = BlzGetFrameByName("ConsoleUIBackdrop",0)
         ScreenplaySystem.gameui    = BlzGetOriginFrame(ORIGIN_FRAME_GAME_UI, 0)
         initFrames()
-        if ScreenplaySystem.initialized then
+        if ScreenplaySystem:isActive() then
             refreshFrames()
-            playCurrentItem()
         end
     end
 
@@ -336,6 +337,10 @@ do
         else
             BlzFrameSetVisible(self.frame.backdrop, true)
         end
+        if self.currentVariantConfig.setVolumeChannelForSpeed == true then
+            SetSpeechVolumeGroupsBJ()
+        end
+
         printDebug("calling first playNext")
         self.currentChain:playNext()
     end
@@ -344,6 +349,27 @@ do
         if ScreenplaySystem.lastActorUnitTypeSpeaking then
             DoTransmissionBasicsXYBJ(ScreenplaySystem.lastActorUnitTypeSpeaking, GetPlayerColor(ScreenplaySystem.lastActorPlayerSpeaking),0, 0, nil, "", "", 0.5)
             ScreenplaySystem.lastActorUnitTypeSpeaking = nil
+        end
+    end
+
+    local function finishPlayingExistingItem()
+        local currentItem = ScreenplaySystem:currentItem()
+        if currentItem and currentItem.sound then
+            StopSoundBJ(currentItem.sound, false)
+            printDebug("Stopped sound (if playing)")
+        end
+        if ScreenplaySystem.messageUncoverTimer then
+            SimpleUtils.releaseTimer(ScreenplaySystem.messageUncoverTimer)
+        end
+        if ScreenplaySystem.autoplayTimer then
+            SimpleUtils.releaseTimer(ScreenplaySystem.autoplayTimer)
+        end
+        if ScreenplaySystem.delayTimer then
+            SimpleUtils.releaseTimer(ScreenplaySystem.delayTimer)
+        end
+        if ScreenplaySystem.fadeoutTimer then
+            SimpleUtils.releaseTimer(ScreenplaySystem.fadeoutTimer)
+            ScreenplaySystem.fadeoutTimer = nil
         end
     end
 
@@ -380,6 +406,12 @@ do
         end
         if self.currentVariantConfig.lockCamera then
             enableCamera(false, sync)
+        end
+
+        finishPlayingExistingItem()
+
+        if self.currentVariantConfig.setVolumeChannelForSpeed == true then
+            VolumeGroupResetBJ()
         end
 
         udg_screenplayActive = false
@@ -486,6 +518,8 @@ do
             if isValidChoice() then
                 printDebug("currentChoices:onChoice() - valid choice")
 
+                finishPlayingExistingItem()
+
                 local choice = self.currentChoices[self.currentChoiceIndex]
 
                 if choice.onChoice then
@@ -520,7 +554,6 @@ do
 
     function ScreenplaySystem:onLoad()
         loadAndInitFrames()
-        refreshFrames()
         playCurrentItem()
     end
 
@@ -702,7 +735,18 @@ do
         if not ScreenplaySystem.currentVariantConfig.autoMoveNext then
             return 0
         end
-        return ScreenplaySystem.currentVariantConfig.autoMoveNextDelay + string.len(self.text) * ScreenplaySystem.currentVariantConfig.speed + self.delayNextItem + self.fadeInDuration + self.fadeOutDuration
+        local duration
+        if self.sound then
+            duration = GetSoundDurationBJ(self.sound)
+            printDebug("Duration from sound: " .. tostring(duration))
+        else
+            duration = ScreenplaySystem.currentVariantConfig.autoMoveNextDelay + string.len(self.text) * ScreenplaySystem.currentVariantConfig.speed
+            printDebug("Duration from autoplay: base " .. tostring(ScreenplaySystem.currentVariantConfig.autoMoveNextDelay)
+                    .. " + length " .. tostring(string.len(self.text) * ScreenplaySystem.currentVariantConfig.speed))
+        end
+        local durationTotal = duration + self.delayNextItem + self.fadeInDuration + self.fadeOutDuration
+        printDebug("Duration total: " .. tostring(durationTotal))
+        return durationTotal
     end
 
     function ScreenplaySystem.item:isActorAlive()
@@ -736,82 +780,79 @@ do
 
     function ScreenplaySystem.chain:moveAndPlayNextInternal()
         local nextIndex = self:getNextIndex();
+        self:moveToAndPlayInternal(nextIndex)
+    end
+
+    function ScreenplaySystem.chain:moveToAndPlayInternal(nextIndex)
+        finishPlayingExistingItem()
         goToInternal(nextIndex)
         self:playNextInternal()
     end
 
     function ScreenplaySystem.chain:playNextInternal()
-        if ScreenplaySystem.messageUncoverTimer then
-            SimpleUtils.releaseTimer(ScreenplaySystem.messageUncoverTimer)
-        end
-        if ScreenplaySystem.autoplayTimer then
-            SimpleUtils.releaseTimer(ScreenplaySystem.autoplayTimer)
-        end
-        if ScreenplaySystem.delayTimer then
-            SimpleUtils.releaseTimer(ScreenplaySystem.delayTimer)
-        end
-        if ScreenplaySystem.fadeoutTimer then
-            SimpleUtils.releaseTimer(ScreenplaySystem.fadeoutTimer)
-            ScreenplaySystem.fadeoutTimer = nil
-        end
         if not self:isValidIndex(ScreenplaySystem.currentIndex) then
             clear()
             ScreenplaySystem:endScene()
-        else
-            local currentItem = self[ScreenplaySystem.currentIndex]
-            if currentItem == nil or currentItem.skipTimers == true then
-                SkippableTimers:skip()
-            end
-            if not self[ScreenplaySystem.currentIndex] or not self[ScreenplaySystem.currentIndex]:isActorAlive() then
-                -- if next item was set to nil or is empty, try to skip over:
-                self:playNext()
-            else
-                if self[ScreenplaySystem.currentIndex].func and not self[ScreenplaySystem.currentIndex].text then
-                    self[ScreenplaySystem.currentIndex]:func()
-                    self:playNext()
-                else
-                    printDebug("trying to play index item: " .. ScreenplaySystem.currentIndex .. " with actor: " .. self[ScreenplaySystem.currentIndex].actor.name)
+            return
+        end
+        local currentItem = self[ScreenplaySystem.currentIndex]
+        if currentItem == nil or currentItem.skipTimers == true then
+            SkippableTimers:skip()
+        end
 
-                    ScreenplaySystem.currentChoiceIndex = 0
-                    local currentItem = self[ScreenplaySystem.currentIndex]
-                    if currentItem.trigger then
-                        ConditionalTriggerExecute(currentItem.trigger)
-                    end
-                    if currentItem.func then
-                        currentItem:func()
-                    end
-                    if currentItem.actions then
-                        for index, action in ipairs(currentItem.actions) do
-                            if action.func then
-                                action:func()
-                            end
-                            if action.trigger then
-                                ConditionalTriggerExecute(action.trigger)
-                            end
-                        end
-                    end
+        if not currentItem then
+            -- if next item was set to nil or is empty, try to skip over:
+            self:playNext()
+            return
+        end
 
-                    local initialDelay = currentItem.delayText + currentItem.fadeInDuration
+        printDebug("trying to play index item: " .. ScreenplaySystem.currentIndex .. " with actor: " .. SimpleUtils.ifElse(currentItem.actor ~= nil, currentItem.actor.name, '[NONE]'))
 
-                    if initialDelay > 0 then
-                        if currentItem.fadeInDuration > 0 then
-                            SimpleUtils.fadeIn(currentItem.fadeInDuration)
-                        end
-
-                        BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, false)
-                        sendDummyTransmission()
-                        ScreenplaySystem.delayTimer = SimpleUtils.timed(initialDelay, function()
-                            ScreenplaySystem.delayTimer = nil
-                            currentItem:play()
-                        end)
-                        printDebug("delayed playing index item: " .. tostring(ScreenplaySystem.currentIndex))
-                    else
-                        currentItem:play()
-                        printDebug("played index item: " .. tostring(ScreenplaySystem.currentIndex))
-                    end
-
+        if currentItem.trigger then
+            ConditionalTriggerExecute(currentItem.trigger)
+        end
+        if currentItem.func then
+            currentItem:func()
+        end
+        if currentItem.actions then
+            for index, action in ipairs(currentItem.actions) do
+                if action.func then
+                    action:func()
+                end
+                if action.trigger then
+                    ConditionalTriggerExecute(action.trigger)
                 end
             end
+        end
+
+        if not currentItem.text and not currentItem.choices then
+            self:playNext()
+            return
+        end
+
+        if not currentItem:isActorAlive()  then
+            self:playNext()
+            return
+        end
+
+        ScreenplaySystem.currentChoiceIndex = 0
+
+        local initialDelay = currentItem.delayText + currentItem.fadeInDuration
+        if initialDelay > 0 then
+            if currentItem.fadeInDuration > 0 then
+                SimpleUtils.fadeIn(currentItem.fadeInDuration)
+            end
+
+            BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, false)
+            sendDummyTransmission()
+            ScreenplaySystem.delayTimer = SimpleUtils.timed(initialDelay, function()
+                ScreenplaySystem.delayTimer = nil
+                currentItem:play()
+            end)
+            printDebug("delayed playing index item: " .. tostring(ScreenplaySystem.currentIndex))
+        else
+            currentItem:play()
+            printDebug("played index item: " .. tostring(ScreenplaySystem.currentIndex))
         end
     end
 
@@ -889,8 +930,7 @@ do
             return
         end
 
-        goToInternal(currentIndex)
-        self:playNextInternal()
+        self:moveToAndPlayInternal(currentIndex)
     end
 
     --[[

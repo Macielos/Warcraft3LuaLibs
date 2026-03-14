@@ -265,7 +265,7 @@ do
         TriggerRegisterGameEvent(gameLoadedTrigger, EVENT_GAME_LOADED)
         TriggerAddCondition(gameLoadedTrigger, Condition(triggerConditionGameLoaded))
 
-        TimerStart(CreateTimer(), 0.0, false, timerFunctionCreatePlayerPortraits)
+        SimpleUtils.timed(0.0, timerFunctionCreatePlayerPortraits)
     end
 
     OnInit.final(initFakeBars)

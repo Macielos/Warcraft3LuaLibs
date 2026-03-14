@@ -135,7 +135,8 @@ ScreenplayVariants = {
         skippable = false,
         rewindable = false,
         interruptExisting = false,
-        enqueueIfExisting = true
+        enqueueIfExisting = true,
+        setVolumeChannelForSpeed = true,
     }
 }
 if Debug then Debug.endFile() end
