@@ -10,21 +10,8 @@ do
         end
     end
 
-    function ScreenplayUtils.interpolateCameraFromCurrentTillEndOfCurrentItem(cameraTo)
-        return ScreenplayUtils.interpolateCameraFromCurrent(cameraTo, ScreenplayUtils.getCurrentItemDuration())
-    end
-
-    function ScreenplayUtils.interpolateCameraFromCurrent(cameraTo, duration)
-        return ScreenplayUtils.interpolateCamera(GetCurrentCameraSetup(), cameraTo, duration)
-    end
-
-    function ScreenplayUtils.interpolateCameraTillEndOfCurrentItem(cameraFrom, cameraTo)
-        ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, ScreenplayUtils.getCurrentItemDuration())
-    end
-
-    function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
+    local function interpolateCamera(cameraFrom, cameraTo, duration)
         ScreenplayUtils.clearInterpolation()
-        SkippableTimers:skip()
         CameraSetupApply(cameraFrom, true)
         local cameraFromX = CameraSetupGetDestPositionX(cameraFrom)
         local cameraFromY = CameraSetupGetDestPositionY(cameraFrom)
@@ -81,6 +68,23 @@ do
             end
         end)
         return timer
+    end
+
+    function ScreenplayUtils.interpolateCameraFromCurrentTillEndOfCurrentItem(cameraTo)
+        return ScreenplayUtils.interpolateCameraFromCurrent(cameraTo, ScreenplayUtils.getCurrentItemDuration())
+    end
+
+    function ScreenplayUtils.interpolateCameraFromCurrent(cameraTo, duration)
+        return interpolateCamera(GetCurrentCameraSetup(), cameraTo, duration)
+    end
+
+    function ScreenplayUtils.interpolateCameraTillEndOfCurrentItem(cameraFrom, cameraTo)
+        ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, ScreenplayUtils.getCurrentItemDuration())
+    end
+
+    function ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration)
+        SkippableTimers:skip()
+        interpolateCamera(cameraFrom, cameraTo, duration)
     end
 
     function ScreenplayUtils.interpolate(from, to, fraction)
