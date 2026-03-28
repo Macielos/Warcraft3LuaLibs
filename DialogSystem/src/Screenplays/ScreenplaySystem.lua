@@ -19,9 +19,9 @@ if Debug then Debug.beginFile "ScreenplaySystem" end
         ScreenplaySystem:isActive() - is any scene playing at the moment?
 ]]
 ScreenplaySystem = {   -- main dialogue class, configuration options can be found in ScreenplayVariants.lua
-    FDF_BACKDROP = "EscMenuBackdrop",
-    FDF_TITLE = "CustomText", -- from imported .fdf
-    FDF_TEXT_AREA = "CustomTextArea", -- ``
+    FDF_BACKDROP = "UnclickableEscMenuBackdrop",
+    FDF_TITLE = "UnclickableText", -- from imported .fdf
+    FDF_TEXT_AREA = "UnclickableTextArea", -- ``
     TITLE_COLOR_HEX = "|cffffce22", -- character title text color.
     TEXT_COLOR_HEX = "|cffffffff", -- character speech text color.
     INACTIVE_CHOICE_COLOR_HEX = "|cff808080", -- greyish text color for choices other than the selected one
