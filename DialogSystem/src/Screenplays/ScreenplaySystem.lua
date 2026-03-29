@@ -701,15 +701,15 @@ do
                 ScreenplaySystem.itemFullyDisplayed = true
                 BlzFrameSetText(ScreenplaySystem.frame.text, ScreenplaySystem.TEXT_COLOR_HEX .. self.text)
                 SimpleUtils.releaseTimer(timer)
-                if ScreenplaySystem.currentVariantConfig.autoMoveNext == true then
-                    ScreenplaySystem.autoplayTimer = SimpleUtils.timed(delay, function()
-                        if ScreenplaySystem:isActive() then
-                            ScreenplaySystem.currentChain:playNext()
-                        end
-                    end)
-                end
             end
         end)
+        if ScreenplaySystem.currentVariantConfig.autoMoveNext == true then
+            ScreenplaySystem.autoplayTimer = SimpleUtils.timed(delay, function()
+                if ScreenplaySystem:isActive() then
+                    ScreenplaySystem.currentChain:playNext()
+                end
+            end)
+        end
     end
 
     function ScreenplaySystem.item:playChoices()
