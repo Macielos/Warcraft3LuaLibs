@@ -3,7 +3,7 @@ if Debug then Debug.beginFile "LuaInfusedGUI" end
     Lua-Infused GUI with automatic memory leak resolution: Modernizing the experience for a better future for users of the Trigger Editor.
 
     Credits:
-        Bribe, Tasyen, Dr Super Good, HerlySQR, Antares
+        Bribe, Tasyen, Dr Super Good, HerlySQR, Antares, Marcielos
 
     Transforming rects, locations, groups, forces and BJ hashtable wrappers into Lua tables, which are automatically garbage collected.
 
@@ -13,7 +13,22 @@ if Debug then Debug.beginFile "LuaInfusedGUI" end
 
     Provides GUI.loopArray for safe iteration over a __jarray
 
-    Updates: 02 Feb 2026 by Insanity_AI
+    Update: 16 Mar 2026 by InsanityAI
+    Changes:
+        - Fixed asserts early exiting functions in case _THROW_ERROR_ON_INVALID_ARG is set to true and the arg condition is valid
+
+    Update: 15 Mar 2026 by InsanityAI
+    Changes:
+        - Added _THROW_ERROR_ON_INVALID_ARG & _PRINT_WARNING_ON_INVALID_ARG flags that modify how assert works within this system
+        - Location and Rect overrides now return non-nil values even if error is disabled but no valid argument was provided
+
+    Update: 01 Mar 2026 by Marcielos & InsanityAI
+    Changes:
+        - Fixed GroupClear, GroupAddUnit, GroupAddGroup and GroupRemoveGroup overrides
+        - Fixed Hashtable API where argument order was wrong
+        - Overridden CreateMinimapIconAtLoc and ExecuteFunc
+
+    Update: 02 Feb 2026 by Insanity_AI
     Changes:
         - FakedType property is now a string
         - replaced _G with _ENV for a (negligible) speed boost
@@ -25,7 +40,7 @@ if Debug then Debug.beginFile "LuaInfusedGUI" end
         - modified GroupXOrder overrides to use group natives in order to retain speed and formation of units when ordered as a group (thanks Macielos)
         - swapped order of overrides: group <-> location, so that group overrides happen first
 
-    Updated: 30 Sep 2025 by Insanity_AI
+    Update: 30 Sep 2025 by Insanity_AI
     Changes:
         - asserts on arguments so DebugUtils can more effectively tell you what's wrong
         - StringHashBJ and GetHandleIdBJ returns 0 if the argument is falsy, otherwise returns the argument itself
@@ -49,12 +64,37 @@ if Debug then Debug.beginFile "LuaInfusedGUI" end
 GUI = {}
 do
     --Configurables
-    local _USE_GLOBAL_REMAP = false --set to true if you want GUI to have extended functionality such as "udg_HashTableArray" (which gives GUI an infinite supply of shared hashtables)
-    local _USE_UNIT_EVENT   = false --set to true if you have UnitEvent in your map and want to automatically remove units from their unit groups if they are removed from the game.
+    local _THROW_ERROR_ON_INVALID_ARG   = true -- set to true if you want LIGUI to throw errors when incorrect arguments are sent to overriden functions
+    local _PRINT_WARNING_ON_INVALID_ARG = true  -- set to true if you want warnings by LIGUI when incorrect arguments are sent to overriden functions
+    local _USE_GLOBAL_REMAP             = false -- set to true if you want GUI to have extended functionality such as "udg_HashTableArray" (which gives GUI an infinite supply of shared hashtables)
+    local _USE_UNIT_EVENT               = false -- set to true if you have UnitEvent in your map and want to automatically remove units from their unit groups if they are removed from the game.
 
     --Define common variables to be utilized throughout the script.
-    local unpack            = table.unpack
-    local assert            = assert
+    local unpack                        = table.unpack
+    local assert                        = assert
+    -- Used to check if function should exit early due to invalid arguments, instead of executing its internal logic
+    local check                         = (function() ---@type fun(condition:boolean, msg: string): shouldEarlyExit: boolean 
+        if _THROW_ERROR_ON_INVALID_ARG then
+            return function(condition, msg)
+                return not assert(condition, msg)
+            end
+        elseif _PRINT_WARNING_ON_INVALID_ARG then
+            return function(condition, msg)
+                if not condition then
+                    if Debug then
+                        Debug.errorHandler("LIGUI: " .. msg, 3)
+                    else
+                        print("|cFFFF0000LIGUI: " .. msg)
+                    end
+                end
+                return not condition
+            end
+        else
+            return function(condition)
+                return not condition
+            end
+        end
+    end)()
 
     ---@class FakedType
     ---@field __faketype string
@@ -180,10 +220,11 @@ do
         ---@param whichHashTable FakeHashtable
         ---@param parentKey unknown
         ---@param childKey unknown
+        ---@return boolean shouldEarlyExit
         local function checkHashtableArgs(whichHashTable, parentKey, childKey)
-            assert(whichHashTable ~= nil, 'whichHashTable cannot be nil')
-            assert(parentKey ~= nil, 'parentKey cannot be nil')
-            assert(childKey ~= nil, 'childKey cannot be nil')
+            return check(whichHashTable ~= nil, 'whichHashTable cannot be nil') or
+                check(parentKey ~= nil, 'parentKey cannot be nil') or
+                check(childKey ~= nil, 'childKey cannot be nil')
         end
 
         ---@return FakeHashtable
@@ -197,7 +238,7 @@ do
         ---@param whichHashTable FakeHashtable
         ---@param type 'boolean'|'integer'|'real'|'string'|'handle'
         local function saveInto(whichHashTable, type, parentKey, childKey, value)
-            checkHashtableArgs(whichHashTable, parentKey, childKey)
+            if checkHashtableArgs(whichHashTable, parentKey, childKey) then return end
             load(whichHashTable, type, parentKey)[childKey] = value
         end
 
@@ -205,7 +246,7 @@ do
         ---@param type 'boolean'|'integer'|'real'|'string'|'handle'
         ---@return fun(whichHashTable: FakeHashtable, parentKey: unknown, childKey: unknown, value: T)
         local function createSaveIntoTyped(type)
-            assert(type ~= nil, 'type cannot be nil')
+            check(type ~= nil, 'type cannot be nil')
             ---@generic T
             ---@param whichHashTable FakeHashtable
             ---@param parentKey unknown
@@ -229,7 +270,7 @@ do
         ---@param default unknown|nil
         ---@return unknown|nil
         local function loadFrom(whichHashTable, type, parentKey, childKey, default)
-            checkHashtableArgs(whichHashTable, parentKey, childKey)
+            if checkHashtableArgs(whichHashTable, parentKey, childKey) then return default end
             local val = load(whichHashTable, type, parentKey)[childKey]
             return val ~= nil and val or default
         end
@@ -267,7 +308,7 @@ do
         ---@param childKey unknown
         ---@return boolean
         function HaveSavedBoolean(whichHashTable, parentKey, childKey)
-            checkHashtableArgs(whichHashTable, parentKey, childKey)
+            if checkHashtableArgs(whichHashTable, parentKey, childKey) then return false end
             return load(whichHashTable, parentKey, 'boolean')[childKey] ~= nil
         end
 
@@ -276,7 +317,7 @@ do
         ---@param childKey unknown
         ---@return boolean
         function HaveSavedInteger(whichHashTable, parentKey, childKey)
-            checkHashtableArgs(whichHashTable, parentKey, childKey)
+            if checkHashtableArgs(whichHashTable, parentKey, childKey) then return false end
             return load(whichHashTable, parentKey, 'integer')[childKey] ~= nil
         end
 
@@ -285,7 +326,7 @@ do
         ---@param childKey unknown
         ---@return boolean
         function HaveSavedReal(whichHashTable, parentKey, childKey)
-            checkHashtableArgs(whichHashTable, parentKey, childKey)
+            if checkHashtableArgs(whichHashTable, parentKey, childKey) then return false end
             return load(whichHashTable, parentKey, 'real')[childKey] ~= nil
         end
 
@@ -294,7 +335,7 @@ do
         ---@param childKey unknown
         ---@return boolean
         function HaveSavedString(whichHashTable, parentKey, childKey)
-            checkHashtableArgs(whichHashTable, parentKey, childKey)
+            if checkHashtableArgs(whichHashTable, parentKey, childKey) then return false end
             return load(whichHashTable, parentKey, 'string')[childKey] ~= nil
         end
 
@@ -303,13 +344,13 @@ do
         ---@param childKey unknown
         ---@return boolean
         function HaveSavedHandle(whichHashTable, parentKey, childKey)
-            checkHashtableArgs(whichHashTable, parentKey, childKey)
+            if checkHashtableArgs(whichHashTable, parentKey, childKey) then return false end
             return load(whichHashTable, parentKey, 'handle')[childKey] ~= nil
         end
 
         ---@param whichHashTable FakeHashtable
         function FlushParentHashtable(whichHashTable)
-            assert(whichHashTable ~= nil, 'whichHashTable cannot be nil')
+            if check(whichHashTable ~= nil, 'whichHashTable cannot be nil') then return end
             whichHashTable.boolean = nil
             whichHashTable.integer = nil
             whichHashTable.real = nil
@@ -320,8 +361,8 @@ do
         ---@param whichHashTable FakeHashtable
         ---@param parentKey unknown
         function FlushChildHashtable(whichHashTable, parentKey)
-            assert(whichHashTable ~= nil, 'whichHashTable cannot be nil')
-            assert(parentKey ~= nil, 'parentKey cannot be nil')
+            if check(whichHashTable ~= nil, 'whichHashTable cannot be nil') then return end
+            if check(parentKey ~= nil, 'parentKey cannot be nil') then return end
             if whichHashTable.boolean then whichHashTable.boolean[parentKey] = nil end
             if whichHashTable.integer then whichHashTable.integer[parentKey] = nil end
             if whichHashTable.real then whichHashTable.real[parentKey] = nil end
@@ -361,7 +402,7 @@ do
 
             ---@param group FakeGroup
             function GroupClear(group)
-                assert(group ~= nil, 'group cannot be nil')
+                if check(group ~= nil, 'group cannot be nil') then return end
                 local u
                 for i = 1, #group do
                     u = group[i]
@@ -373,7 +414,7 @@ do
         else
             ---@param group FakeGroup
             function GroupClear(group)
-                assert(group ~= nil, 'group cannot be nil')
+                if check(group ~= nil, 'group cannot be nil') then return end
                 for i = 1, #group do
                     group.indexOf[group[i]] = nil
                     group[i] = nil
@@ -384,8 +425,8 @@ do
         ---@param group FakeGroup
         ---@param unit unit
         function GroupAddUnit(group, unit)
-            assert(group ~= nil, 'group cannot be nil')
-            assert(unit ~= nil, 'unit cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return end
+            if check(unit ~= nil, 'unit cannot be nil') then return end
             if group.indexOf[unit] then return end
 
             local pos = #group + 1
@@ -400,8 +441,8 @@ do
         ---@param group FakeGroup
         ---@param unit unit
         function GroupRemoveUnit(group, unit)
-            assert(group ~= nil, 'group cannot be nil')
-            assert(unit ~= nil, 'unit cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return end
+            if check(unit ~= nil, 'unit cannot be nil') then return end
             local indexOf = group.indexOf
             if indexOf == nil then return end
             local pos = indexOf[unit]
@@ -424,15 +465,15 @@ do
         ---@param group FakeGroup
         ---@return boolean
         function IsUnitInGroup(unit, group)
-            assert(unit ~= nil, 'unit cannot be nil')
-            assert(group ~= nil, 'group cannot be nil')
+            if check(unit ~= nil, 'unit cannot be nil') then return false end
+            if check(group ~= nil, 'group cannot be nil') then return false end
             return group.indexOf[unit] and true or false
         end
 
         ---@param group FakeGroup
         ---@return unit|nil
         function FirstOfGroup(group)
-            assert(group ~= nil, 'group cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return end
             return group[1]
         end
 
@@ -445,8 +486,8 @@ do
         ---@param group FakeGroup
         ---@param code fun(u: unit)
         function GUI.forGroup(group, code)
-            assert(group ~= nil, 'group cannot be nil')
-            assert(code ~= nil, 'code cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return end
+            if check(code ~= nil, 'code cannot be nil') then return end
             for i = 1, #group do
                 code(group[i])
             end
@@ -455,8 +496,8 @@ do
         ---@param group FakeGroup
         ---@param code fun(u)
         function ForGroup(group, code)
-            assert(group ~= nil, 'group cannot be nil')
-            assert(code ~= nil, 'code cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return end
+            if check(code ~= nil, 'code cannot be nil') then return end
             local old = enumUnit
             GUI.forGroup(group, function(unit)
                 enumUnit = unit
@@ -472,8 +513,8 @@ do
             ---@param index integer
             ---@return unit|nil
             function BlzGroupUnitAt(group, index)
-                assert(group ~= nil, 'group cannot be nil')
-                assert(index ~= nil, 'index cannot be nil')
+                if check(group ~= nil, 'group cannot be nil') then return nil end
+                if check(index ~= nil, 'index cannot be nil') then return nil end
                 return group[index + 1]
             end
 
@@ -515,7 +556,7 @@ do
                 ---@param code fun(group: FakeGroup, ...: unknown)
                 ---@param ... unknown
                 GUI["enumUnits" .. name] = function(code, ...)
-                    assert(code ~= nil, 'code cannot be nil')
+                    if check(code ~= nil, 'code cannot be nil') then return end
                     old(mainGroup, ...)
                     groupAction(code)
                 end
@@ -535,7 +576,7 @@ do
             ---@param ... unknown
             ---@return boolean
             _ENV[name] = function(group, ...)
-                assert(group ~= nil, ' group cannot be nil')
+                if check(group ~= nil, ' group cannot be nil') then return false end
                 oldGroupClear(issueGroup)
                 for _, unit in ipairs(group) do
                     oldGroupAddUnit(issueGroup, unit)
@@ -547,15 +588,15 @@ do
         ---@param group FakeGroup
         ---@return integer
         function BlzGroupGetSize(group)
-            assert(group ~= nil, 'group cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return 0 end
             return #group
         end
 
         ---@param group FakeGroup
         ---@param add FakeGroup
         function GroupAddGroup(add, group)
-            assert(group ~= nil, 'group cannot be nil')
-            assert(add ~= nil, 'add cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return end
+            if check(add ~= nil, 'add cannot be nil') then return end
             GUI.forGroup(add, function(unit)
                 GroupAddUnit(group, unit)
             end)
@@ -564,8 +605,8 @@ do
         ---@param group FakeGroup
         ---@param remove FakeGroup
         function GroupRemoveGroup(remove, group)
-            assert(group ~= nil, 'group cannot be nil')
-            assert(remove ~= nil, 'remove cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return end
+            if check(remove ~= nil, 'remove cannot be nil') then return end
             GUI.forGroup(remove, function(unit)
                 GroupRemoveUnit(group, unit)
             end)
@@ -574,14 +615,14 @@ do
         ---@param group FakeGroup
         ---@return unit|nil
         function GroupPickRandomUnit(group)
-            assert(group ~= nil, 'group cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return nil end
             return group[1] and group[GetRandomInt(1, #group)]
         end
 
         ---@param group FakeGroup
         ---@return boolean
         function IsUnitGroupEmptyBJ(group)
-            assert(group ~= nil, 'group cannot be nil')
+            if check(group ~= nil, 'group cannot be nil') then return true end -- if it's a nil group, I'm sure the appropriate logic is to say it's empty?
             return not group[1]
         end
 
@@ -602,7 +643,7 @@ do
                     local u = data.unit
                     local g = groups[u]
                     if g then
-                        for _, group in pairs(g) do
+                        for group, _ in pairs(g) do
                             GroupRemoveUnit(group, u)
                         end
                     end
@@ -626,8 +667,8 @@ do
         ---@param y number
         ---@return FakeLocation
         function Location(x, y)
-            assert(x ~= nil, 'x cannot be nil')
-            assert(y ~= nil, 'y cannot be nil')
+            if check(x ~= nil, 'x cannot be nil') then return { 0.00, 0.00, __faketype = 'userdata' } end
+            if check(y ~= nil, 'y cannot be nil') then return { 0.00, 0.00, __faketype = 'userdata' } end
             return { x, y, __faketype = "userdata" }
         end
 
@@ -638,10 +679,11 @@ do
             local oldRally  = GetUnitRallyPoint
 
             ---@param unit unit
-            ---@return FakeLocation
+            ---@return FakeLocation?
             function GetUnitRallyPoint(unit)
-                assert(unit ~= nil, 'unit cannot be nil')
-                local removeThis = oldRally(unit) --Actually needs to create a location for a brief moment, as there is no GetUnitRallyX/Y
+                if check(unit ~= nil, 'unit cannot be nil') then return nil end -- no unit, no rally
+                local removeThis = oldRally(unit)                                    --Actually needs to create a location for a brief moment, as there is no GetUnitRallyX/Y
+                if removeThis == nil then return nil end                             -- in case there's no rally
                 local loc = Location(oldGetX(removeThis), oldGetY(removeThis))
                 oldRemove(removeThis)
                 return loc
@@ -659,8 +701,8 @@ do
             ---@return number z
             function GUI.getCoordZ(x, y)
                 function GUI.getCoordZ(x, y)
-                    assert(x ~= nil, 'x cannot be nil')
-                    assert(y ~= nil, 'y cannot be nil')
+                    if check(x ~= nil, 'x cannot be nil') then return 0 end
+                    if check(y ~= nil, 'y cannot be nil') then return 0 end
                     oldMoveLoc(location, x, y)
                     return oldGetZ(location)
                 end
@@ -673,21 +715,21 @@ do
         ---@param loc FakeLocation
         ---@return number x
         function GetLocationX(loc)
-            assert(loc ~= nil, 'loc cannot be nil')
+            if check(loc ~= nil, 'loc cannot be nil') then return 0 end
             return loc[1]
         end
 
         ---@param loc FakeLocation
         ---@return number y
         function GetLocationY(loc)
-            assert(loc ~= nil, 'loc cannot be nil')
+            if check(loc ~= nil, 'loc cannot be nil') then return 0 end
             return loc[2]
         end
 
         ---@param loc FakeLocation
         ---@return number z
         function GetLocationZ(loc)
-            assert(loc ~= nil, 'loc cannot be nil')
+            if check(loc ~= nil, 'loc cannot be nil') then return 0 end
             return GUI.getCoordZ(loc[1], loc[2])
         end
 
@@ -695,7 +737,7 @@ do
         ---@param x number
         ---@param y number
         function MoveLocation(loc, x, y)
-            assert(loc ~= nil, 'loc cannot be nil')
+            if check(loc ~= nil, 'loc cannot be nil') then return end
             loc[1] = x
             loc[2] = y
         end
@@ -719,8 +761,8 @@ do
         ---@param effect effect
         ---@param loc FakeLocation
         function BlzSetSpecialEffectPositionLoc(effect, loc)
-            assert(effect ~= nil, 'effect cannot be nil')
-            assert(loc ~= nil, 'loc cannot be nil')
+            if check(effect ~= nil, 'effect cannot be nil') then return end
+            if check(loc ~= nil, 'loc cannot be nil') then return end
             local x, y = loc[1], loc[2]
             BlzSetSpecialEffectPosition(effect, x, y, GUI.getCoordZ(x, y))
         end
@@ -731,19 +773,24 @@ do
         local function hook(oldVarName, newVarName, index)
             local new = _ENV[newVarName]
             local func
+
+            local errorMsgIndex1 = 'Function ' .. oldVarName .. '\'s argument #1 - location cannot be nil!'
+            local errorMsgIndex2 = 'Function ' .. oldVarName .. '\'s argument #2 - location cannot be nil!'
+            local errorMsgIndex3 = 'Function ' .. oldVarName .. '\'s argument #3 - location cannot be nil!'
+
             if index == 1 then
                 func = function(loc, ...)
-                    if loc == nil then error('Function ' .. oldVarName .. '\'s argument #1 - location cannot be nil!') end
+                    if check(loc ~= nil, errorMsgIndex1) then return new(0, 0, ...) end
                     return new(loc[1], loc[2], ...)
                 end
             elseif index == 2 then
                 func = function(a, loc, ...)
-                    if loc == nil then error('Function ' .. oldVarName .. '\'s argument #2 - location cannot be nil!') end
+                    if check(loc ~= nil, errorMsgIndex2) then return new(a, 0, 0, ...) end
                     return new(a, loc[1], loc[2], ...)
                 end
             else --index==3
                 func = function(a, b, loc, ...)
-                    if loc == nil then error('Function ' .. oldVarName .. '\'s argument #3 - location cannot be nil!') end
+                    if check(loc ~= nil, errorMsgIndex3) then return new(a, b, 0, 0, ...) end
                     return new(a, b, loc[1], loc[2], ...)
                 end
             end
@@ -782,8 +829,8 @@ do
         ---@param max FakeLocation
         ---@return FakeRect newRect
         function RectFromLoc(min, max)
-            assert(min ~= nil, 'min cannot be nil')
-            assert(max ~= nil, 'max cannot be nil')
+            if check(min ~= nil, 'min cannot be nil') then return nil end
+            if check(max ~= nil, 'max cannot be nil') then return nil end
             return Rect(min[1], min[2], max[1], max[2]) --[[@as FakeRect]]
         end
 
@@ -791,8 +838,8 @@ do
         ---@param min FakeLocation
         ---@param max FakeLocation
         function SetRectFromLoc(whichRect, min, max)
-            assert(min ~= nil, 'min cannot be nil')
-            assert(max ~= nil, 'max cannot be nil')
+            if check(min ~= nil, 'min cannot be nil') then return end
+            if check(max ~= nil, 'max cannot be nil') then return end
             SetRect(whichRect, min[1], min[2], max[1], max[2])
         end
     end
@@ -814,10 +861,10 @@ do
         ---@param maxY number
         ---@return FakeRect
         function Rect(minX, minY, maxX, maxY)
-            assert(minX ~= nil, 'minX cannot be nil')
-            assert(minY ~= nil, 'minY cannot be nil')
-            assert(maxX ~= nil, 'maxX cannot be nil')
-            assert(maxY ~= nil, 'maxY cannot be nil')
+            if check(minX ~= nil, 'minX cannot be nil') then return { 0, 0, 0, 0, __faketype = "userdata" } end
+            if check(minY ~= nil, 'minY cannot be nil') then return { 0, 0, 0, 0, __faketype = "userdata" } end
+            if check(maxX ~= nil, 'maxX cannot be nil') then return { 0, 0, 0, 0, __faketype = "userdata" } end
+            if check(maxY ~= nil, 'maxY cannot be nil') then return { 0, 0, 0, 0, __faketype = "userdata" } end
             return { minX, minY, maxX, maxY, __faketype = "userdata" }
         end
 
@@ -828,11 +875,11 @@ do
         ---@param maxX number
         ---@param maxY number
         function SetRect(rect, minX, minY, maxX, maxY)
-            assert(rect ~= nil, 'rect cannot be nil')
-            assert(minX ~= nil, 'minX cannot be nil')
-            assert(minY ~= nil, 'minY cannot be nil')
-            assert(maxX ~= nil, 'maxX cannot be nil')
-            assert(maxY ~= nil, 'maxY cannot be nil')
+            if check(rect ~= nil, 'rect cannot be nil') then return end
+            if check(minX ~= nil, 'minX cannot be nil') then return end
+            if check(minY ~= nil, 'minY cannot be nil') then return end
+            if check(maxX ~= nil, 'maxX cannot be nil') then return end
+            if check(maxY ~= nil, 'maxY cannot be nil') then return end
             rect[1] = minX
             rect[2] = minY
             rect[3] = maxX
@@ -865,42 +912,42 @@ do
         ---@param rect FakeRect
         ---@return number
         function GetRectMinX(rect)
-            assert(rect ~= nil, 'rect cannot be nil')
+            if check(rect ~= nil, 'rect cannot be nil') then return 0 end
             return rect[1]
         end
 
         ---@param rect FakeRect
         ---@return number
         function GetRectMinY(rect)
-            assert(rect ~= nil, 'rect cannot be nil')
+            if check(rect ~= nil, 'rect cannot be nil') then return 0 end
             return rect[2]
         end
 
         ---@param rect FakeRect
         ---@return number
         function GetRectMaxX(rect)
-            assert(rect ~= nil, 'rect cannot be nil')
+            if check(rect ~= nil, 'rect cannot be nil') then return 0 end
             return rect[3]
         end
 
         ---@param rect FakeRect
         ---@return number
         function GetRectMaxY(rect)
-            assert(rect ~= nil, 'rect cannot be nil')
+            if check(rect ~= nil, 'rect cannot be nil') then return 0 end
             return rect[4]
         end
 
         ---@param rect FakeRect
         ---@return number
         function GetRectCenterX(rect)
-            assert(rect ~= nil, 'rect cannot be nil')
+            if check(rect ~= nil, 'rect cannot be nil') then return 0 end
             return (rect[1] + rect[3]) / 2
         end
 
         ---@param rect FakeRect
         ---@return number
         function GetRectCenterY(rect)
-            assert(rect ~= nil, 'rect cannot be nil')
+            if check(rect ~= nil, 'rect cannot be nil') then return 0 end
             return (rect[2] + rect[4]) / 2
         end
 
@@ -908,9 +955,9 @@ do
         ---@param x number
         ---@param y number
         function MoveRectTo(rect, x, y)
-            assert(rect ~= nil, 'rect cannot be nil')
-            assert(x ~= nil, 'x cannot be nil')
-            assert(y ~= nil, 'y cannot be nil')
+            if check(rect ~= nil, 'rect cannot be nil') then return end
+            if check(x ~= nil, 'x cannot be nil') then return end
+            if check(y ~= nil, 'y cannot be nil') then return end
             x = x - GetRectCenterX(rect)
             y = y - GetRectCenterY(rect)
             SetRect(rect, rect[1] + x, rect[2] + y, rect[3] + x, rect[4] + y)
@@ -921,22 +968,35 @@ do
         local function hook(varName, index)
             local old = _ENV[varName]
             local func
+
+            local errorMsgIndex1 = 'Function ' .. varName .. '\'s argument #1 - rect cannot be nil!'
+            local errorMsgIndex2 = 'Function ' .. varName .. '\'s argument #2 - rect cannot be nil!'
+            local errorMsgIndex3 = 'Function ' .. varName .. '\'s argument #3 - rect cannot be nil!'
             if index == 1 then
                 func = function(rct, ...)
-                    if rct == nil then error('Function ' .. varName .. '\'s argument #1 - rect cannot be nil!') end
-                    oldSetRect(rect --[[@as rect]], unpack(rct))
+                    if check(rct ~= nil, errorMsgIndex1) then
+                        oldSetRect(rect --[[@as rect]], 0, 0, 0, 0)
+                    else
+                        oldSetRect(rect --[[@as rect]], unpack(rct))
+                    end
                     return old(rect, ...)
                 end
             elseif index == 2 then
                 func = function(a, rct, ...)
-                    if rct == nil then error('Function ' .. varName .. '\'s argument #2 - rect cannot be nil!') end
-                    oldSetRect(rect --[[@as rect]], unpack(rct))
+                    if check(rct ~= nil, errorMsgIndex2) then
+                        oldSetRect(rect --[[@as rect]], 0, 0, 0, 0)
+                    else
+                        oldSetRect(rect --[[@as rect]], unpack(rct))
+                    end
                     return old(a, rect, ...)
                 end
             else --index==3
                 func = function(a, b, rct, ...)
-                    if rct == nil then error('Function ' .. varName .. '\'s argument #3 - rect cannot be nil!') end
-                    oldSetRect(rect --[[@as rect]], unpack(rct))
+                    if check(rct ~= nil, errorMsgIndex3) then
+                        oldSetRect(rect --[[@as rect]], 0, 0, 0, 0)
+                    else
+                        oldSetRect(rect --[[@as rect]], unpack(rct))
+                    end
                     return old(a, b, rect, ...)
                 end
             end
@@ -984,7 +1044,7 @@ do
 
         ---@param force FakeForce
         function ForceClear(force)
-            assert(force ~= nil, 'force cannot be nil')
+            if check(force ~= nil, 'force cannot be nil') then return end
             for i, val in ipairs(force) do
                 force.indexOf[val] = nil
                 force[i] = nil
@@ -1015,8 +1075,8 @@ do
             ---@param force FakeForce
             ---@param flag boolean
             function CripplePlayer(player, force, flag)
-                assert(player ~= nil, 'player cannot be nil')
-                assert(force ~= nil, 'force cannot be nil')
+                if check(player ~= nil, 'player cannot be nil') then return end
+                if check(force ~= nil, 'force cannot be nil') then return end
                 GUI.cripplePlayer(player, force, flag)
             end
         end
@@ -1024,8 +1084,8 @@ do
         ---@param force FakeForce
         ---@param player player
         function ForceAddPlayer(force, player)
-            assert(force ~= nil, 'force cannot be nil')
-            assert(player ~= nil, 'player cannot be nil')
+            if check(force ~= nil, 'force cannot be nil') then return end
+            if check(player ~= nil, 'player cannot be nil') then return end
             if force.indexOf[player] then return end
 
             local pos = #force + 1
@@ -1036,8 +1096,8 @@ do
         ---@param force FakeForce
         ---@param player player
         function ForceRemovePlayer(force, player)
-            assert(force ~= nil, 'force cannot be nil')
-            assert(player ~= nil, 'player cannot be nil')
+            if check(force ~= nil, 'force cannot be nil') then return end
+            if check(player ~= nil, 'player cannot be nil') then return end
             local pos = force.indexOf[player]
             if pos == nil then return end
 
@@ -1054,8 +1114,8 @@ do
         ---@param player player
         ---@return boolean
         function BlzForceHasPlayer(force, player)
-            assert(force ~= nil, 'force cannot be nil')
-            assert(player ~= nil, 'player cannot be nil')
+            if check(force ~= nil, 'force cannot be nil') then return false end
+            if check(player ~= nil, 'player cannot be nil') then return false end
             return force.indexOf[player] and true or false
         end
 
@@ -1063,8 +1123,8 @@ do
         ---@param force FakeForce
         ---@return boolean
         function IsPlayerInForce(player, force)
-            assert(player ~= nil, 'player cannot be nil')
-            assert(force ~= nil, 'force cannot be nil')
+            if check(player ~= nil, 'player cannot be nil') then return false end
+            if check(force ~= nil, 'force cannot be nil') then return false end
             return force.indexOf[player] and true or false
         end
 
@@ -1072,8 +1132,8 @@ do
         ---@param force FakeForce
         ---@return boolean
         function IsUnitInForce(unit, force)
-            assert(unit ~= nil, 'unit cannot be nil')
-            assert(force ~= nil, 'force cannot be nil')
+            if check(unit ~= nil, 'unit cannot be nil') then return false end
+            if check(force ~= nil, 'force cannot be nil') then return false end
             return force.indexOf[GetOwningPlayer(unit)] and true or false
         end
 
@@ -1089,8 +1149,8 @@ do
         ---@param force FakeForce
         ---@param code function
         function ForForce(force, code)
-            assert(force ~= nil, 'force cannot be nil')
-            assert(code ~= nil, 'code cannot be nil')
+            if check(force ~= nil, 'force cannot be nil') then return end
+            if check(code ~= nil, 'code cannot be nil') then return end
             local old = enumPlayer
             for _, player in ipairs(force) do
                 enumPlayer = player
@@ -1101,7 +1161,7 @@ do
 
         ---@param force FakeForce
         local function funnelEnum(force)
-            assert(force ~= nil, 'force cannot be nil')
+            if check(force ~= nil, 'force cannot be nil') then return end
             ForceClear(force)
             oldForForce(mainForce, function()
                 ForceAddPlayer(force, oldEnumPlayer())
@@ -1123,7 +1183,7 @@ do
             end
 
             _ENV[varStr] = function(force, ...)
-                assert(force ~= nil, 'force cannot be nil')
+                if check(force ~= nil, 'force cannot be nil') then return end
                 deferred(force, ...)
             end
         end
@@ -1134,7 +1194,7 @@ do
         ---@param force FakeForce
         ---@return integer
         function CountPlayersInForceBJ(force)
-            assert(force ~= nil, 'force cannot be nil')
+            if check(force ~= nil, 'force cannot be nil') then return 0 end
             return #force
         end
 
@@ -1143,7 +1203,7 @@ do
         ---@param player player
         ---@return FakeForce
         function GetForceOfPlayer(player)
-            assert(player ~= nil, 'player cannot be nil')
+            if check(player ~= nil, 'player cannot be nil') then return nil end
             --No longer leaks. There was no reason to dynamically create forces to begin with.
             return bj_FORCE_PLAYER[GetPlayerId(player)]
         end
@@ -1180,8 +1240,8 @@ do
     ---@param trig trigger
     ---@param r FakeRect
     function TriggerRegisterDestDeathInRegionEvent(trig, r)
-        assert(trig ~= nil, 'trigger cannot be nil')
-        assert(r ~= nil, 'rect cannot be nil')
+        if check(trig ~= nil, 'trigger cannot be nil') then return end
+        if check(r ~= nil, 'rect cannot be nil') then return end
         --Removes the limit on the number of destructables that can be registered.
         EnumDestructablesInRect(r, nil, function() TriggerRegisterDeathEvent(trig, GetEnumDestructable()) end)
     end
@@ -1212,8 +1272,9 @@ do
         local cache = __jarray()
 
         ---@param whichTrig trigger
+        ---@return function
         function GUI.wrapTrigger(whichTrig)
-            assert(whichTrig ~= nil, 'whichTrig cannot be nil')
+            if check(whichTrig ~= nil, 'whichTrig cannot be nil') then return nil end
             local func = cache[whichTrig]
             if not func then
                 func = function()
@@ -1242,14 +1303,14 @@ do
             has been reduced to just this one function (in addition to the bj override).
         -----------------------------------------------------------------------------------------------]]
         local fStack, tStack, oldBJ = {}, {},
-        TriggerRegisterAnyUnitEventBJ ---@type {[eventid]: function[]}, {[eventid]: trigger[]}
+            TriggerRegisterAnyUnitEventBJ ---@type {[eventid]: function[]}, {[eventid]: trigger[]}
 
-        ---@param event eventid
+        ---@param event playerunitevent
         ---@param userFunc function
         ---@param skip boolean?
         function RegisterAnyPlayerUnitEvent(event, userFunc, skip)
-            assert(event ~= nil, 'event cannot be nil')
-            assert(userFunc ~= nil, 'userFunc cannot be nil')
+            if check(event ~= nil, 'event cannot be nil') then return end
+            if check(userFunc ~= nil, 'userFunc cannot be nil') then return end
             if skip then
                 local t = tStack[event]
                 if t and IsTriggerEnabled(t) then
@@ -1293,11 +1354,11 @@ do
 
         local trigFuncs
         ---@param trig trigger
-        ---@param event eventid
+        ---@param event playerunitevent
         ---@return function|nil
         function TriggerRegisterAnyUnitEventBJ(trig, event)
-            assert(trig ~= nil, 'trig cannot be nil')
-            assert(event ~= nil, 'event cannot be nil')
+            if check(trig ~= nil, 'trig cannot be nil') then return nil end
+            if check(event ~= nil, 'event cannot be nil') then return nil end
             local removeFunc = RegisterAnyPlayerUnitEvent(event, GUI.wrapTrigger(trig))
             if _USE_GLOBAL_REMAP then
                 if not trigFuncs then
@@ -1315,18 +1376,29 @@ do
         end
     end
 
-    ---Modify to allow requests for negative hero stats, as per request from Tasyen.
+    -- Modify to allow requests for negative hero stats, as per request from Tasyen.
     ---@param whichHero unit
     ---@param whichStat integer
     ---@param value integer
     function SetHeroStat(whichHero, whichStat, value)
-        assert(whichStat ~= nil, 'whichStat cannot be nil')
+        if check(whichStat ~= nil, 'whichStat cannot be nil') then return end
         if (whichStat == bj_HEROSTAT_STR) then
             SetHeroStr(whichHero, value, true)
         elseif (whichStat == bj_HEROSTAT_AGI) then
             SetHeroAgi(whichHero, value, true)
         elseif (whichStat == bj_HEROSTAT_INT) then
             SetHeroInt(whichHero, value, true)
+        end
+    end
+
+    -- ExecuteFunc native is useless in Lua, so let's replace it:
+    ---@param funcName string
+    function ExecuteFunc(funcName)
+        local func = _ENV[funcName]
+        if func == nil then
+            check(false, 'Function by the name ' .. funcName .. ' is not found!')
+        else
+            func()
         end
     end
 
@@ -1363,7 +1435,7 @@ do
     DestroyEffectBJ                      = DestroyEffect
     GetItemLifeBJ                        = GetWidgetLife     -- This was just to type casting
     SetItemLifeBJ                        = SetWidgetLife     -- This was just to type casting
-    UnitRemoveBuffBJ                     = UnitRemoveAbility -- The buffs are abilities
+    --UnitRemoveBuffBJ                     = UnitRemoveAbility -- The buffs are abilities
     GetLearnedSkillBJ                    = GetLearnedSkill
     UnitDropItemPointBJ                  = UnitDropItemPoint
     UnitDropItemTargetBJ                 = UnitDropItemTarget
@@ -1425,12 +1497,12 @@ do
     DestroyTimerDialogBJ                 = DestroyTimerDialog
     TimerDialogSetTitleBJ                = TimerDialogSetTitle
     TimerDialogSetSpeedBJ                = TimerDialogSetSpeed
-    TimerDialogDisplayBJ                 = TimerDialogDisplay
+    --TimerDialogDisplayBJ                 = TimerDialogDisplay
     LeaderboardSetStyleBJ                = LeaderboardSetStyle
     LeaderboardGetItemCountBJ            = LeaderboardGetItemCount
     LeaderboardHasPlayerItemBJ           = LeaderboardHasPlayerItem
     DestroyLeaderboardBJ                 = DestroyLeaderboard
-    LeaderboardDisplayBJ                 = LeaderboardDisplay
+    --LeaderboardDisplayBJ                 = LeaderboardDisplay
     LeaderboardSortItemsByPlayerBJ       = LeaderboardSortItemsByPlayer
     LeaderboardSortItemsByLabelBJ        = LeaderboardSortItemsByLabel
     PlayerGetLeaderboardBJ               = PlayerGetLeaderboard
