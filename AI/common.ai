@@ -759,16 +759,6 @@ endglobals
 
 // EXODUS CUSTOM FUNCTIONS START
 
-function Print takes string msg returns nothing
-    if trace_on == true then
-        call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, msg)
-    endif
-endfunction
-
-function PrintLn takes string msg returns nothing
-    call Print(msg + "\n")
-endfunction
-
 function Abs takes integer i returns integer
     if i < 0 then
         return i * (-1)
@@ -847,6 +837,16 @@ endfunction
 
 function AppendBool takes boolean val returns string
     return ", " + Bool2Str(val)
+endfunction
+
+function Print takes string msg returns nothing
+    if trace_on == true then
+        call DisplayTextToPlayer(GetLocalPlayer(), 0, 0, "[" + Int2Str(GetAiPlayer()) + "] " + msg)
+    endif
+endfunction
+
+function PrintLn takes string msg returns nothing
+    call Print(msg + "\n")
 endfunction
 
 function WaitForSignalAndData takes nothing returns integer
