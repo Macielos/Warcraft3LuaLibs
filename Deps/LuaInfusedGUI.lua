@@ -383,7 +383,7 @@ do
     --]=============================]
     local unitRemovedEvent ---@type fun(unit: unit)
     do
-        local mainGroup = bj_lastCreatedGroup
+        local mainGroup = CreateGroup()
         local issueGroup = CreateGroup() --[[@as group]]
         DestroyGroup(bj_suspendDecayFleshGroup --[[@as group]])
         DestroyGroup(bj_suspendDecayBoneGroup --[[@as group]])
