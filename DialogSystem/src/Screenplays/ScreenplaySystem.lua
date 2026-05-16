@@ -64,7 +64,9 @@ do
         fadeInDuration = 0, --duration of fade in from black before displaying this item
         fadeOutDuration = 0, -- duration of fade out to black after displaying this item, remember to add 'fadeInDuration' to the following item or fade in by script/trigger
         skipTimers = false, --if true, upon skipping this message timed actions added via SimpleUtils.skippable() will be cancelled. Set to true for messages that begin a new shot, with fade, new camera etc.
-        stopOnRewind = false, --if true, rewinding a cutscene (ESC) will stop at this message
+        stopOnRewind = false, --if true, rewinding a cutscene (ESC) will stop at this message,
+        panCameraTargetX = nil,
+        panCameraTargetY = nil
     }
 
     ScreenplaySystem.itemAction = {
@@ -343,6 +345,10 @@ do
                 DoTransmissionBasicsXYBJ(ScreenplaySystem.lastActorUnitTypeSpeaking, GetPlayerColor(ScreenplaySystem.lastActorPlayerSpeaking),0, 0, nil, "", "", 0.5)
                 ScreenplaySystem.lastActorUnitTypeSpeaking = nil
             end
+        end
+
+        function ScreenplaySystem:sendDummyTransmission()
+            sendDummyTransmission()
         end
 
         local function finishPlayingExistingItem()
@@ -647,7 +653,10 @@ do
             end
 
             if ScreenplaySystem.currentVariantConfig.unitPan then
-                if self.actor.unit then
+                if self.panCameraTargetX and self.panCameraTargetY then
+                    ScreenplaySystem.cameraTargetX = self.panCameraTargetX
+                    ScreenplaySystem.cameraTargetY = self.panCameraTargetY
+                elseif self.actor.unit then
                     ScreenplaySystem.cameraTargetX = GetUnitX(self.actor.unit)
                     ScreenplaySystem.cameraTargetY = GetUnitY(self.actor.unit)
                 elseif ScreenplaySystem.currentChain.backupActorUnit then
@@ -960,9 +969,6 @@ do
                     newChain[itemIndex].text = item.text
                 end
                 newChain[itemIndex].actor = item.actor
-                if item.emotion then
-                    newChain[itemIndex].emotion = item.emotion
-                end
                 if item.anim then
                     newChain[itemIndex].anim = item.anim
                 end
@@ -1016,6 +1022,12 @@ do
                 end
                 if not (item.stopOnRewind == nil) then
                     newChain[itemIndex].stopOnRewind = item.stopOnRewind
+                end
+                if not (item.panCameraTargetX == nil) then
+                    newChain[itemIndex].panCameraTargetX = item.panCameraTargetX
+                end
+                if not (item.panCameraTargetY == nil) then
+                    newChain[itemIndex].panCameraTargetY = item.panCameraTargetY
                 end
                 if item.choices then
                     newChain[itemIndex].choices = {}
