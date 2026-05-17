@@ -1605,25 +1605,27 @@ do
         ---@field n integer
         local eventListeners = { n = 0 }
 
-        OnInit.trig(function()
+        local function indexUnit(unit)
+            if not allUnits[unit] then
+                allUnits[unit] = true
+                UnitAddAbility(unit, _REMOVE_ABIL)
+                UnitMakeAbilityPermanent(unit, true, _REMOVE_ABIL)
+            end -- else - the unit was dead, but has re-entered the map (e.g. unloaded from meat wagon)
+        end
 
+        OnInit.main(function()
             local enterTrigger = CreateTrigger()
             TriggerRegisterEnterRectSimple(enterTrigger, GetWorldBounds() --[[@as rect]]) -- returns FakeRect but due to all overrides, the BJ will be able to process it
             TriggerAddAction(enterTrigger, function()
                 local unit = GetTriggerUnit()
-                if not allUnits[unit] then
-                    allUnits[unit] = true
-                    UnitAddAbility(unit, _REMOVE_ABIL)
-                    UnitMakeAbilityPermanent(unit, true, _REMOVE_ABIL)
-                    -- else - the unit was dead, but has re-entered the map (e.g. unloaded from meat wagon)
-                end
+                indexUnit(unit)
             end)
 
             local deindexTrigger = CreateTrigger()
             TriggerRegisterAnyUnitEventBJ(deindexTrigger, EVENT_PLAYER_UNIT_ISSUED_ORDER)
             TriggerAddAction(deindexTrigger, function()
                 local unit = GetTriggerUnit()
-                if GetIssuedOrderId() == UNDEFEND_ORDER_ID and (not UnitAlive(unit)) and allUnits[unit] then
+                if GetIssuedOrderId() == UNDEFEND_ORDER_ID and not UnitAlive(unit) and allUnits[unit] and GetUnitAbilityLevel(unit, _REMOVE_ABIL) == 0 then
                     allUnits[unit] = nil
                     for _, listener in ipairs(eventListeners) do
                         -- todo: wrap it in a coroutine so that TSA/yields don't pause this entire thing (after coroutine recycler is added)
