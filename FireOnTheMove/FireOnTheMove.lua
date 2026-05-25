@@ -182,7 +182,6 @@ do
         if not hasFreeFlightTime then
             missile.target = targetUnit
         end
-        --missile.collision = 16
 
         missile.onRemove = function()
             UnitDamageTarget(sourceUnit, targetUnit, damage, true, true, attackType, DAMAGE_TYPE_NORMAL, nil)
