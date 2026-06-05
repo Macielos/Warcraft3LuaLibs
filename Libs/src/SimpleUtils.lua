@@ -190,6 +190,7 @@ function SimpleUtils.valueToString(v, prefix)
 end
 
 function SimpleUtils.toString(o, prefix)
+    if not prefix then prefix = "" end
     local s = "{\n"
     for key, value in pairs(o) do
         local keyString = SimpleUtils.valueToString(key, '')

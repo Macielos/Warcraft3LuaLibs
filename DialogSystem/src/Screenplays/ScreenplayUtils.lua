@@ -9,6 +9,55 @@ do
             print("[SCREENPLAY UTILS] " .. msg)
         end
     end
+    
+    local customCamera = CreateCameraSetup()
+
+    local function copyCameraField(from, to, field)
+        CameraSetupSetField(to, field, CameraSetupGetField(from, field), 0.0)
+    end
+    
+    local function copyCameraSetup(from, to)
+        copyCameraField(from, to, CAMERA_FIELD_ZOFFSET)
+        copyCameraField(from, to, CAMERA_FIELD_ROTATION)
+        copyCameraField(from, to, CAMERA_FIELD_ANGLE_OF_ATTACK)
+        copyCameraField(from, to, CAMERA_FIELD_TARGET_DISTANCE)
+        copyCameraField(from, to, CAMERA_FIELD_ROLL)
+        copyCameraField(from, to, CAMERA_FIELD_FIELD_OF_VIEW)
+        copyCameraField(from, to, CAMERA_FIELD_FARZ)
+        copyCameraField(from, to, CAMERA_FIELD_NEARZ)
+        copyCameraField(from, to, CAMERA_FIELD_LOCAL_PITCH)
+        copyCameraField(from, to, CAMERA_FIELD_LOCAL_YAW)
+        copyCameraField(from, to, CAMERA_FIELD_LOCAL_ROLL)
+        CameraSetupSetDestPosition(to, CameraSetupGetDestPositionX(from), CameraSetupGetDestPositionY(from), 0.0)
+    end
+
+    local function fixCameraIfNeeded(cameraFromX, cameraToX, cameraFromY, cameraToY, cameraFromDistance, cameraToDistance, cameraTo, durationInt, durationLeft)
+        local fraction = (durationInt - durationLeft) / durationInt
+        local interpolatedX = ScreenplayUtils.interpolate(cameraFromX, cameraToX, fraction)
+        local interpolatedY = ScreenplayUtils.interpolate(cameraFromY, cameraToY, fraction)
+        local interpolatedDistance = ScreenplayUtils.interpolate(cameraFromDistance, cameraToDistance, fraction)
+
+        local sceneCameraX = GetCameraTargetPositionX()
+        local sceneCameraY = GetCameraTargetPositionY()
+        local sceneCameraDistance = GetCameraField(CAMERA_FIELD_TARGET_DISTANCE)
+        local ERROR_MARGIN = 5.0
+        local fixed = false
+        if math.abs(sceneCameraX - interpolatedX) > ERROR_MARGIN or math.abs(sceneCameraY - interpolatedY) > ERROR_MARGIN then
+            printDebug("interpolateCamera: " .. tostring(interpolatedX) .. ", " .. tostring(interpolatedY))
+            printDebug("sceneCamera: " .. tostring(sceneCameraX) .. ", " .. tostring(sceneCameraY))
+            printDebug("fixing camera pos")
+            SetCameraPosition(interpolatedX, interpolatedY)
+            fixed = true
+        end
+        if math.abs(sceneCameraDistance - interpolatedDistance) > ERROR_MARGIN then
+            printDebug("fixing camera distance" .. tostring(sceneCameraDistance) .. " -> " .. interpolatedDistance)
+            SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, interpolatedDistance, 0.0)
+            fixed = true
+        end
+        if fixed == true then
+            CameraSetupApplyForceDuration(cameraTo, true, durationLeft)
+        end
+    end
 
     local function interpolateCamera(cameraFrom, cameraTo, duration)
         ScreenplayUtils.clearInterpolation()
@@ -19,6 +68,7 @@ do
 
         local cameraToX = CameraSetupGetDestPositionX(cameraTo)
         local cameraToY = CameraSetupGetDestPositionY(cameraTo)
+        local cameraToDistance = CameraSetupGetField(cameraTo, CAMERA_FIELD_TARGET_DISTANCE)
         if(cameraToX == cameraFromX and cameraFromY == cameraToY) then
             --ugly workaround for blizz camera getting unlocked when positions from == to
             cameraFromY = cameraFromY - 5.0;
@@ -28,7 +78,6 @@ do
         SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, cameraFromDistance, 0.0)
 
         CameraSetupApplyForceDuration(cameraTo, true, duration)
-        --SetCameraField(CAMERA_FIELD_FARZ, 20000, 0.0)
         local timer = CreateTimer()
         ScreenplaySystem.cameraInterpolationTimer = timer
         local durationInt = math.floor(duration)
@@ -37,34 +86,11 @@ do
             --print("durationLeft: " .. tostring(durationLeft) .. " / " .. tostring(durationInt))
             durationLeft = durationLeft - 1
             if durationLeft <= 0 then
-                CameraSetupApplyForceDuration(cameraTo, true, 9999)
-                --SetCameraField(CAMERA_FIELD_FARZ, 20000, 0.0)
-                SimpleUtils.releaseTimer(timer)
+                local backupCameraMovementDuration = 9999
+                CameraSetupApplyForceDuration(cameraFrom, true, backupCameraMovementDuration)
+                fixCameraIfNeeded(cameraToX, cameraFromX, cameraToY, cameraFromY, cameraToDistance, cameraFromDistance, cameraFrom, backupCameraMovementDuration, backupCameraMovementDuration + durationLeft)
             else
-                local interpolatedX = ScreenplayUtils.interpolate(cameraFromX, cameraToX, (durationInt - durationLeft) / durationInt)
-                local interpolatedY = ScreenplayUtils.interpolate(cameraFromY, cameraToY, (durationInt - durationLeft) / durationInt)
-                local interpolatedDistance = ScreenplayUtils.interpolate(CameraSetupGetField(cameraFrom, CAMERA_FIELD_TARGET_DISTANCE), CameraSetupGetField(cameraTo, CAMERA_FIELD_TARGET_DISTANCE), (durationInt - durationLeft) / durationInt)
-                local sceneCameraX = GetCameraTargetPositionX()
-                local sceneCameraY = GetCameraTargetPositionY()
-                local sceneCameraDistance = GetCameraField(CAMERA_FIELD_TARGET_DISTANCE)
-                local ERROR_MARGIN = 5.0
-                local fixed = false
-                if math.abs(sceneCameraX - interpolatedX) > ERROR_MARGIN or math.abs(sceneCameraY - interpolatedY) > ERROR_MARGIN then
-                    printDebug("interpolateCamera: " .. tostring(interpolatedX) .. ", " .. tostring(interpolatedY))
-                    printDebug("sceneCamera: " .. tostring(sceneCameraX) .. ", " .. tostring(sceneCameraY))
-                    printDebug("fixing camera pos")
-                    SetCameraPosition(interpolatedX, interpolatedY)
-                    fixed = true
-                end
-                if math.abs(sceneCameraDistance - interpolatedDistance) > ERROR_MARGIN then
-                    printDebug("fixing camera distance" .. tostring(sceneCameraDistance) .. " -> " .. interpolatedDistance)
-                    SetCameraField(CAMERA_FIELD_TARGET_DISTANCE, interpolatedDistance, 0.0)
-                    fixed = true
-                end
-                if fixed == true then
-                    CameraSetupApplyForceDuration(cameraTo, true, durationLeft)
-                    --SetCameraField(CAMERA_FIELD_FARZ, 20000, 0.0)
-                end
+                fixCameraIfNeeded(cameraFromX, cameraToX, cameraFromY, cameraToY, cameraFromDistance, cameraToDistance, cameraTo, durationInt, durationLeft)
             end
         end)
         return timer
@@ -75,7 +101,8 @@ do
     end
 
     function ScreenplayUtils.interpolateCameraFromCurrent(cameraTo, duration)
-        return interpolateCamera(GetCurrentCameraSetup(), cameraTo, duration)
+        copyCameraSetup(GetCurrentCameraSetup(), customCamera)
+        return interpolateCamera(customCamera, cameraTo, duration)
     end
 
     function ScreenplayUtils.interpolateCameraTillEndOfCurrentItem(cameraFrom, cameraTo)
