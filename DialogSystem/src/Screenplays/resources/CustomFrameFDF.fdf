@@ -1,22 +1,3 @@
-Frame "TEXT" "CustomText" {
-    //DecorateFileNames,
-    FrameFont "MasterFont", 0.024, "",
-    FontJustificationH JUSTIFYLEFT,
-    FontJustificationV JUSTIFYTOP,
-    FontColor 1.0 1.0 1.0 1.0,
-    FontShadowColor 0.0 0.0 0.0 0.9,
-    FontShadowOffset 0.001 -0.001,
-    LayerStyle "IGNORETRACKEVENTS",
-}
-Frame "TEXTAREA" "CustomTextArea" {
-    //DecorateFileNames,
-    FrameFont "MasterFont", 0.013, "",
-    TextAreaLineHeight 0.008,
-    TextAreaLineGap 0.005,
-    TextAreaInset 0.00,
-    TextAreaMaxLines 128,
-    LayerStyle "IGNORETRACKEVENTS",
-}
 Frame "TEXT" "ClickableText" {
     //DecorateFileNames,
     FrameFont "MasterFont", 0.024, "",

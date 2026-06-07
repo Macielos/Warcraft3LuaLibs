@@ -71,16 +71,14 @@ Notes:
   - all global functions it adds are in GlobalFunctions.lua
 
 Compatibility:
-- I'm currently using the library on Reforged only, but it should work on 1.31 as it only uses very basic native functions. Just make sure your map uses LUA. I remember that I ran some early versions on 1.31.
+- Probably Reforged only. It COULD work on 1.31 as it only uses very basic native functions, if you manage to get LUA working there (I couldn't). 
 
 Known issues:
-- You can unlock a camera in cutscene by pressing e.g. F10. To fix it I periodically 'adjust' the camera.
+- You can unlock a camera in cutscene by pressing e.g. F10. To fix it I periodically 'adjust' the camera. 
 - Because of above, instead of standard camera functions/trigger actions you should use ScreenplayUtils.interpolateCamera(cameraFrom, cameraTo, duration) or ScreenplayUtils.interpolateCameraFromCurrent(cameraTo, duration). See elf screenplay in demo for examples.
-- For some rare camera angles in cutscenes camera does not get locked at all, so you can freely move it.
-- During in-game dialogs you can click on a window which disrupts a game a little. I wanted to make it unclickable, but so far I didn't find an option for that. In the worst case I'll just add a config to display in-game dialogs like in vanilla, without a dialog window.
+- If the camera is kept idle, it does not get locked at all, so you can freely move it during cutscene. Using ScreenplayUtils functions prevent that by making camera move back veeery slowly if it completed movement and there is no next one submitted
 
 Credits:
 @Planetary - my system began as a modification of this system:
 https://www.hiveworkshop.com/threads/lua-jrpg-dialogue-system-v1-3.327674/
 In time I expanded and reworked it to a degree there's hardly any original code left, but I still use its UI files and some basic code structure. Planetary gave me permission to use fragments of his system. He said he doesn't need any credits, but his system is cool and gave me lots of inspiration, so I'm giving him credits anyway :P. 
-

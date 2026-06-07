@@ -288,16 +288,6 @@ do
             ScreenplaySystem:startScene(buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
         end
 
-        local function setBackupActorUnit(chain)
-            for i, item in ipairs(chain) do
-                if item.actor.unit ~= nil and UnitAlive(item.actor.unit) then
-                    chain.backupActorUnit = item.actor.unit
-                    printDebug("Backup actor unit: " .. GetUnitName(chain.backupActorUnit))
-                    return
-                end
-            end
-        end
-
         function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interruptExisting)
             if self:isActive() then
                 if interruptExisting == true or (interruptExisting == nil and ScreenplayVariants[variant].interruptExisting == true) then
@@ -318,7 +308,6 @@ do
             assert(self.currentVariantConfig, "invalid frame variant: " .. variant)
             self.currentIndex = 0
             self.currentChain = SimpleUtils.deepCopy(chain)
-            setBackupActorUnit(self.currentChain)
             self.paused = false
             if not self.initialized then
                 initScene()
@@ -661,9 +650,6 @@ do
                 elseif self.actor.unit then
                     ScreenplaySystem.cameraTargetX = GetUnitX(self.actor.unit)
                     ScreenplaySystem.cameraTargetY = GetUnitY(self.actor.unit)
-                elseif ScreenplaySystem.currentChain.backupActorUnit then
-                    ScreenplaySystem.cameraTargetX = GetUnitX(ScreenplaySystem.currentChain.backupActorUnit)
-                    ScreenplaySystem.cameraTargetY = GetUnitY(ScreenplaySystem.currentChain.backupActorUnit)
                 end
             end
             ScreenplaySystem.prevActor = self.actor
