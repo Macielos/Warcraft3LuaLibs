@@ -9,6 +9,7 @@ ScreenplayFactory:saveBuilderForMessageChain('orc', function()
             actor = actorFootman,
         },
         [2] = {
+            delayText = 3.0,
             text = "Whazzup, hummie?",
             actor = actorGrunt,
             anim = "stand two",

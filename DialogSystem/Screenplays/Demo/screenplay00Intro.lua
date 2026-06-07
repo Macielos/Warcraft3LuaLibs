@@ -1,7 +1,8 @@
 ScreenplayFactory:saveBuilderForMessageChain("intro", function()
     return {
         [1] = {
-            text = "Ahhh, the world's spinning! What did this fucking dwarf pour me!? Gotta find some beer.",
+            text = ScreenplayMessages['intro001'],
+            sound = ScreenplaySounds['intro001'],
             actor = actorFootman,
         },
     }

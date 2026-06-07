@@ -351,25 +351,45 @@ do
             sendDummyTransmission()
         end
 
+
+        local function clearMessageUncovererTimer()
+            if ScreenplaySystem.messageUncoverTimer then
+                SimpleUtils.releaseTimer(ScreenplaySystem.messageUncoverTimer)
+                ScreenplaySystem.messageUncoverTimer = nil
+            end
+        end
+
+        local function clearAutoplayTimer()
+            if ScreenplaySystem.autoplayTimer then
+                SimpleUtils.releaseTimer(ScreenplaySystem.autoplayTimer)
+                ScreenplaySystem.autoplayTimer = nil
+            end
+        end
+
+        local function clearDelayTimer()
+            if ScreenplaySystem.delayTimer then
+                SimpleUtils.releaseTimer(ScreenplaySystem.delayTimer)
+                ScreenplaySystem.delayTimer = nil
+            end
+        end
+
+        local function clearFadeoutTimer()
+            if ScreenplaySystem.fadeoutTimer then
+                SimpleUtils.releaseTimer(ScreenplaySystem.fadeoutTimer)
+                ScreenplaySystem.fadeoutTimer = nil
+            end
+        end
+
         local function finishPlayingExistingItem()
             local currentItem = ScreenplaySystem:currentItem()
             if currentItem and currentItem.sound then
                 StopSoundBJ(currentItem.sound, false)
                 printDebug("Stopped sound (if playing)")
             end
-            if ScreenplaySystem.messageUncoverTimer then
-                SimpleUtils.releaseTimer(ScreenplaySystem.messageUncoverTimer)
-            end
-            if ScreenplaySystem.autoplayTimer then
-                SimpleUtils.releaseTimer(ScreenplaySystem.autoplayTimer)
-            end
-            if ScreenplaySystem.delayTimer then
-                SimpleUtils.releaseTimer(ScreenplaySystem.delayTimer)
-            end
-            if ScreenplaySystem.fadeoutTimer then
-                SimpleUtils.releaseTimer(ScreenplaySystem.fadeoutTimer)
-                ScreenplaySystem.fadeoutTimer = nil
-            end
+            clearMessageUncovererTimer()
+            clearAutoplayTimer()
+            clearDelayTimer()
+            clearFadeoutTimer()
         end
 
         function ScreenplaySystem:endScene()
@@ -421,21 +441,6 @@ do
             self.currentVariantConfig = nil
             self.initialized = false
             self.frame = nil
-            if self.messageUncoverTimer then
-                SimpleUtils.releaseTimer(self.messageUncoverTimer)
-            end
-            if self.autoplayTimer then
-                SimpleUtils.releaseTimer(self.autoplayTimer)
-            end
-            if self.cameraInterpolationTimer then
-                SimpleUtils.releaseTimer(self.cameraInterpolationTimer)
-            end
-            if self.delayTimer then
-                SimpleUtils.releaseTimer(self.delayTimer)
-            end
-            if self.fadeoutTimer then
-                SimpleUtils.releaseTimer(self.fadeoutTimer)
-            end
             -- clear cache:
             if not self.paused then
                 SimpleUtils.destroyTable(self.currentChain)
@@ -453,8 +458,8 @@ do
         local function clickNext()
             if ScreenplaySystem.currentChain then
                 if ScreenplaySystem.delayTimer then
-                    SimpleUtils.releaseTimer(ScreenplaySystem.delayTimer)
-                    ScreenplaySystem.delayTimer = nil
+                    clearDelayTimer()
+                    printDebug('Resetting delay timer and replaying current item')
                     playCurrentItem()
                 elseif ScreenplaySystem.itemFullyDisplayed then
                     ScreenplaySystem.currentChain:playNext()
@@ -617,10 +622,7 @@ do
         -- play a speech item, rendering its string characters over time and displaying actor details.
         function ScreenplaySystem.item:play()
             -- initialize timer settings:
-            if ScreenplaySystem.messageUncoverTimer then
-                SimpleUtils.releaseTimer(ScreenplaySystem.messageUncoverTimer)
-                ScreenplaySystem.messageUncoverTimer = nil
-            end
+            clearMessageUncovererTimer()
 
             BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, true)
             BlzFrameSetText(ScreenplaySystem.frame.title, ScreenplaySystem.TITLE_COLOR_HEX .. self.actor.name .. "|r")
