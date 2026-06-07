@@ -1,4 +1,4 @@
-ScreenplayFactory:saveBuilderForMessageChain('ghost', function()
+ScreenplayFactory:saveBuilderForMessageChain("ghost", function()
     --an example of an actor without a unit
     local ghostUnitType = FourCC('ngh1')
     local ghostPlayer = Player(2)

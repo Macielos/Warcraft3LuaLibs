@@ -1,4 +1,4 @@
-ScreenplayFactory:saveBuilderForMessageChain('orc', function()
+ScreenplayFactory:saveBuilderForMessageChain("orc", function()
     local sounds = {}
     sounds.grunt01 = gg_snd_GruntWhat2
     sounds.footman01 = gg_snd_FootmanWarcry1
@@ -9,7 +9,6 @@ ScreenplayFactory:saveBuilderForMessageChain('orc', function()
             actor = actorFootman,
         },
         [2] = {
-            delayText = 3.0,
             text = "Whazzup, hummie?",
             actor = actorGrunt,
             anim = "stand two",
