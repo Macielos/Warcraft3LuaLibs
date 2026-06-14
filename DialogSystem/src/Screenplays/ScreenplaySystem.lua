@@ -130,16 +130,22 @@ do
             end
         end
 
+        local function sendDummyTransmission()
+            if ScreenplaySystem.lastActorUnitTypeSpeaking then
+                DoTransmissionBasicsXYBJ(ScreenplaySystem.lastActorUnitTypeSpeaking, GetPlayerColor(ScreenplaySystem.lastActorPlayerSpeaking),0, 0, nil, "", "", 0.5)
+                ScreenplaySystem.lastActorUnitTypeSpeaking = nil
+            end
+        end
+
+        function ScreenplaySystem:sendDummyTransmission()
+            sendDummyTransmission()
+        end
+
         --- when a new chain is being played, initialize the default display.
         local function clear()
-            ScreenplayUtils.clearInterpolation()
             if ScreenplaySystem.frame then
-                BlzFrameSetText(ScreenplaySystem.frame.text, "")
-                BlzFrameSetText(ScreenplaySystem.frame.title, "")
-                if ScreenplaySystem.fade then
-                    BlzFrameSetAlpha(ScreenplaySystem.frame.text, 0)
-                    BlzFrameSetAlpha(ScreenplaySystem.frame.title, 0)
-                end
+                BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, false)
+                sendDummyTransmission()
             end
         end
 
@@ -316,11 +322,14 @@ do
                 refreshFrames()
             end
 
-            if self.fade then
-                fadeOutFrame(false)
-            else
-                BlzFrameSetVisible(self.frame.backdrop, true)
+            if self.currentChain[1] and self.currentChain[1].fadeInDuration == 0 and self.currentChain[1].delayText == 0 then
+                if self.fade then
+                    fadeOutFrame(false)
+                else
+                    BlzFrameSetVisible(self.frame.backdrop, true)
+                end
             end
+
             if self.currentVariantConfig.setVolumeChannelForSpeech == true then
                 SetSpeechVolumeGroupsBJ()
             end
@@ -328,18 +337,6 @@ do
             printDebug("calling first playNext")
             self.currentChain:playNext()
         end
-
-        local function sendDummyTransmission()
-            if ScreenplaySystem.lastActorUnitTypeSpeaking then
-                DoTransmissionBasicsXYBJ(ScreenplaySystem.lastActorUnitTypeSpeaking, GetPlayerColor(ScreenplaySystem.lastActorPlayerSpeaking),0, 0, nil, "", "", 0.5)
-                ScreenplaySystem.lastActorUnitTypeSpeaking = nil
-            end
-        end
-
-        function ScreenplaySystem:sendDummyTransmission()
-            sendDummyTransmission()
-        end
-
 
         local function clearMessageUncovererTimer()
             if ScreenplaySystem.messageUncoverTimer then
@@ -352,6 +349,13 @@ do
             if ScreenplaySystem.autoplayTimer then
                 SimpleUtils.releaseTimer(ScreenplaySystem.autoplayTimer)
                 ScreenplaySystem.autoplayTimer = nil
+            end
+        end
+
+        local function clearHidePortraitTimer()
+            if ScreenplaySystem.hidePortraitTimer then
+                SimpleUtils.releaseTimer(ScreenplaySystem.hidePortraitTimer)
+                ScreenplaySystem.hidePortraitTimer = nil
             end
         end
 
@@ -377,6 +381,7 @@ do
             end
             clearMessageUncovererTimer()
             clearAutoplayTimer()
+            clearHidePortraitTimer()
             clearDelayTimer()
             clearFadeoutTimer()
         end
@@ -388,7 +393,12 @@ do
         -- end the dialogue sequence.
         function ScreenplaySystem:endScene(sync)
             SkippableTimers:skip()
+            ScreenplayUtils.clearInterpolation()
             clear()
+            if ScreenplaySystem.fade then
+                BlzFrameSetAlpha(ScreenplaySystem.frame.text, 0)
+                BlzFrameSetAlpha(ScreenplaySystem.frame.title, 0)
+            end
             if self.currentVariantConfig.cinematicMode then
                 sendDummyTransmission()
             end
@@ -536,7 +546,7 @@ do
                 printDebug("will call clickNext()")
                 clickNext()
             else
-                printDebug("Couldn't select choice")
+                printDebug("No choices to select")
             end
         end
 
@@ -626,18 +636,17 @@ do
                 if ScreenplaySystem.currentVariantConfig.unitFlash then
                     speechIndicator(self.actor.unit)
                 end
-                if not (self.anim == nil) then
+                if self.anim then
                     ResetUnitAnimation(self.actor.unit)
                     QueueUnitAnimation(self.actor.unit, self.anim)
                     QueueUnitAnimation(self.actor.unit, "stand")
                 end
             end
-            if not (self.sound == nil) then
+            if self.sound then
                 SimpleUtils.playSound(self.sound)
             end
 
-            BlzFrameSetVisible(ScreenplaySystem.frame.title, true)
-            BlzFrameSetVisible(ScreenplaySystem.frame.text, true)
+            BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, true)
             if ScreenplaySystem.fade and ScreenplaySystem.prevActor ~= self.actor then
                 FrameUtils.fadeFrame(false, ScreenplaySystem.frame.title, ScreenplaySystem.fadeDuration)
                 FrameUtils.fadeFrame(false, ScreenplaySystem.frame.text, ScreenplaySystem.fadeDuration)
@@ -666,7 +675,8 @@ do
             local ahead = ''
 
             -- render string characters:
-            local delay = self:getDuration()
+            local nextItemDelay = self:getDuration()
+            local hidePortraitDelay = self:getBaseDuration() + 3.0
 
             if ScreenplaySystem.currentVariantConfig.cinematicMode then
                 sendTransmission(self.actor, self.text)
@@ -676,6 +686,7 @@ do
             DisplayTimedTextToPlayer(GetLocalPlayer(), 0.0, 0.0, 0.1, ScreenplaySystem.TITLE_COLOR_HEX .. self.actor.name .. "|r: " .. self.text)
             ClearTextMessages()
 
+            local text
             ScreenplaySystem.messageUncoverTimer = SimpleUtils.timedRepeat(ScreenplaySystem.currentVariantConfig.speed, count, function(timer)
                 if pos < count and not ScreenplaySystem.itemFullyDisplayed then
                     ahead = string.sub(self.text, pos, pos + 1)
@@ -687,20 +698,29 @@ do
                     else
                         pos = pos + 1
                     end
-                    BlzFrameSetText(ScreenplaySystem.frame.text, ScreenplaySystem.TEXT_COLOR_HEX .. string.sub(self.text, 1, pos))
+                    text = ScreenplaySystem.TEXT_COLOR_HEX .. string.sub(self.text, 1, pos) .. '|r'
+                    BlzFrameSetText(ScreenplaySystem.frame.text, text)
                     FrameUtils.fixFocus(ScreenplaySystem.frame.text)
+                    --printDebug("messageUncoverTimer: " .. text)
                 else
                     ScreenplaySystem.itemFullyDisplayed = true
-                    BlzFrameSetText(ScreenplaySystem.frame.text, ScreenplaySystem.TEXT_COLOR_HEX .. self.text)
+                    BlzFrameSetText(ScreenplaySystem.frame.text, ScreenplaySystem.TEXT_COLOR_HEX .. self.text  .. '|r')
                     SimpleUtils.releaseTimer(timer)
                 end
             end)
             if ScreenplaySystem.currentVariantConfig.autoMoveNext == true then
-                ScreenplaySystem.autoplayTimer = SimpleUtils.timed(delay, function()
+                ScreenplaySystem.autoplayTimer = SimpleUtils.timed(nextItemDelay, function()
                     if ScreenplaySystem:isActive() then
                         ScreenplaySystem.currentChain:playNext()
                     end
                 end)
+                if hidePortraitDelay < nextItemDelay then
+                    ScreenplaySystem.hidePortraitTimer = SimpleUtils.timed(hidePortraitDelay, function()
+                        ScreenplaySystem.hidePortraitTimer = nil
+                        printDebug("Hiding portrait after " .. tostring(hidePortraitDelay))
+                        clear()
+                    end)
+                end
             end
         end
 
@@ -723,10 +743,7 @@ do
             return self.visible and (self.visibleFunc == nil or self.visibleFunc())
         end
 
-        function ScreenplaySystem.item:getDuration()
-            if not ScreenplaySystem.currentVariantConfig.autoMoveNext then
-                return 0
-            end
+        function ScreenplaySystem.item:getBaseDuration()
             local duration
             if self.sound then
                 duration = GetSoundDurationBJ(self.sound)
@@ -736,7 +753,14 @@ do
                 printDebug("Duration from autoplay: base " .. tostring(ScreenplaySystem.currentVariantConfig.autoMoveNextDelay)
                         .. " + length " .. tostring(string.len(self.text) * ScreenplaySystem.currentVariantConfig.speed))
             end
-            local durationTotal = duration + self.delayNextItem + self.fadeInDuration + self.fadeOutDuration
+            return duration
+        end
+
+        function ScreenplaySystem.item:getDuration()
+            if not ScreenplaySystem.currentVariantConfig.autoMoveNext then
+                return 0
+            end
+            local durationTotal = self:getBaseDuration() + self.delayNextItem + self.fadeOutDuration
             printDebug("Duration total: " .. tostring(durationTotal))
             return durationTotal
         end
@@ -840,7 +864,7 @@ do
                     ScreenplaySystem.delayTimer = nil
                     currentItem:play()
                 end)
-                printDebug("delayed playing index item: " .. tostring(ScreenplaySystem.currentIndex))
+                printDebug("delayed playing index item: " .. tostring(ScreenplaySystem.currentIndex) .. " by " .. tostring(initialDelay))
             else
                 currentItem:play()
                 printDebug("played index item: " .. tostring(ScreenplaySystem.currentIndex))
