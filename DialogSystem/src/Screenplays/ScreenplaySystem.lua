@@ -169,6 +169,34 @@ do
             BlzFrameSetText(ScreenplaySystem.frame.text, "")
         end
 
+        local function enqueueScene(name, variant, onSceneEndTrigger)
+            table.insert(ScreenplaySystem.sceneQueue, {
+                name = name,
+                variant = variant,
+                onSceneEndTrigger = onSceneEndTrigger
+            })
+            printDebug("Scene enqueued: " .. name)
+        end
+
+        local function buildScreenplay(name)
+            local builder = ScreenplayFactory.screenplayBuilders[name]
+            printDebug("calling builder for " .. tostring(name))
+            return builder()
+        end
+
+        local startSceneFunction
+
+        local function runEnqueuedScene()
+            if ScreenplaySystem.sceneQueue[1] ~= nil then
+                local scene = table.remove(ScreenplaySystem.sceneQueue, 1)
+                startSceneFunction(buildScreenplay(scene.name), scene.variant, scene.onSceneEndTrigger, false)
+            end
+        end
+
+        local function clearSceneQueue()
+            ScreenplaySystem.sceneQueue = {}
+        end
+
         local function loadAndInitFrames()
             if not BlzLoadTOCFile('war3mapImported\\CustomFrameTOC.toc') then
                 print("error: .fdf file failed to load")
@@ -181,6 +209,8 @@ do
             initFrames()
             if ScreenplaySystem:isActive() then
                 refreshFrames()
+            elseif ScreenplaySystem.sceneQueue[1] ~= nil then
+                SimpleUtils.timed(0.1, runEnqueuedScene)
             end
         end
 
@@ -229,13 +259,7 @@ do
             ScreenplaySystem.initialized = true
         end
 
-        --- initialize classes and class specifics, always called at map init
         function ScreenplaySystem:init()
-            SimpleUtils.newClass(ScreenplaySystem.actor)
-            SimpleUtils.newClass(ScreenplaySystem.item)
-            SimpleUtils.newClass(ScreenplaySystem.itemAction)
-            SimpleUtils.newClass(ScreenplaySystem.chain)
-            SimpleUtils.newClass(ScreenplaySystem.choice)
             self.prevActor = nil   -- control for previous actor if frames animate on change.
             self.itemFullyDisplayed = false -- flag for controlling quick-complete vs. next speech item.
             self.currentIndex = 0     -- the item currently being played from an item queue.
@@ -245,56 +269,15 @@ do
             self.initialized = false
             self.sceneCamera = gg_cam_sceneCam
             self.trackingCameraTimer = CreateTimer()
-            -- time elapsed init.
-            SimpleUtils.timed(0.0, function()
-                loadAndInitFrames()
-            end)
         end
 
-        local function buildScreenplay(name)
-            local builder = ScreenplayFactory.screenplayBuilders[name]
-            printDebug("calling builder for " .. tostring(name))
-            return builder()
+        --- initialize classes and class specifics, always called at map init
+        function ScreenplaySystem:initFinal()
+            SimpleUtils.timed(0.0, loadAndInitFrames)
         end
 
-        local function enqueueScene(name, variant, onSceneEndTrigger)
-            table.insert(ScreenplaySystem.sceneQueue, {
-                name = name,
-                variant = variant,
-                onSceneEndTrigger = onSceneEndTrigger
-            })
-            printDebug("Scene enqueued: " .. name)
-        end
-
-        local function runEnqueuedScene()
-            if ScreenplaySystem.sceneQueue[1] ~= nil then
-                local scene = table.remove(ScreenplaySystem.sceneQueue, 1)
-                ScreenplaySystem:startScene(buildScreenplay(scene.name), scene.variant, scene.onSceneEndTrigger, false)
-            end
-        end
-
-        local function clearSceneQueue()
-            ScreenplaySystem.sceneQueue = {}
-        end
-
-        ---startSceneByName
-        --- start a scene by name previously saved using ScreenplayFactory.saveBuilder() function, display it using a given
-        --- variant from ScreenplayVariants. Optionally pass trigger to run on scene end and a bool flag whether it should
-        --- interrupt existing scene
-        ---@param name string
-        ---@param variant string
-        ---@param onSceneEndTrigger trigger
-        ---@param interruptExisting boolean
-        ---@param enqueueIfExisting boolean
-        function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting, enqueueIfExisting)
-            if self:isActive() and (enqueueIfExisting == true or (enqueueIfExisting == nil and ScreenplayVariants[variant].enqueueIfExisting == true)) then
-                enqueueScene(name, variant, onSceneEndTrigger)
-                return
-            end
-            ScreenplaySystem:startScene(buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
-        end
-
-        function ScreenplaySystem:startScene(chain, variant, onSceneEndTrigger, interruptExisting)
+        startSceneFunction = function(chain, variant, onSceneEndTrigger, interruptExisting)
+            local self = ScreenplaySystem
             if self:isActive() then
                 if interruptExisting == true or (interruptExisting == nil and ScreenplayVariants[variant].interruptExisting == true) then
                     printDebug("interrupting existing scene...")
@@ -336,6 +319,25 @@ do
 
             printDebug("calling first playNext")
             self.currentChain:playNext()
+        end
+
+        ---startSceneByName
+        --- start a scene by name previously saved using ScreenplayFactory.saveBuilder() function, display it using a given
+        --- variant from ScreenplayVariants. Optionally pass trigger to run on scene end and a bool flag whether it should
+        --- interrupt existing scene
+        ---@param name string
+        ---@param variant string
+        ---@param onSceneEndTrigger trigger
+        ---@param interruptExisting boolean
+        ---@param enqueueIfExisting boolean
+        function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting, enqueueIfExisting)
+            if not self.frames --map initialization, frame not yet initialized
+                    or (self:isActive() and (enqueueIfExisting == true or (enqueueIfExisting == nil and ScreenplayVariants[variant].enqueueIfExisting == true)))
+            then
+                enqueueScene(name, variant, onSceneEndTrigger)
+                return
+            end
+            startSceneFunction(buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
         end
 
         local function clearMessageUncovererTimer()
@@ -1097,8 +1099,17 @@ do
             return index > 0 and index <= SimpleUtils.tableLength(self)
         end
 
-        OnInit.final(function()
+        SimpleUtils.newClass(ScreenplaySystem.actor)
+        SimpleUtils.newClass(ScreenplaySystem.item)
+        SimpleUtils.newClass(ScreenplaySystem.itemAction)
+        SimpleUtils.newClass(ScreenplaySystem.chain)
+        SimpleUtils.newClass(ScreenplaySystem.choice)
+
+        OnInit.trig(function()
             ScreenplaySystem:init()
+        end)
+        OnInit.final(function()
+            ScreenplaySystem:initFinal()
         end)
     end
 end
