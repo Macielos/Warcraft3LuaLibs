@@ -233,9 +233,6 @@ do
         BlzFrameSetScale(playerManaFrame, FAKE_BAR_TEXT_SCALE)
         BlzFrameSetTextAlignment(playerManaFrame, TEXT_JUSTIFY_TOP, TEXT_JUSTIFY_CENTER)
         BlzFrameSetVisible(playerManaFrame, false)
-
-        PauseTimer(GetExpiredTimer())
-        DestroyTimer(GetExpiredTimer())
     end
 
     local function triggerConditionGameLoaded()
