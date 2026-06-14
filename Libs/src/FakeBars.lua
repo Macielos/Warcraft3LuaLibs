@@ -24,9 +24,6 @@ do
 
     local gameLoadedTrigger = CreateTrigger()
 
-    -- for handle IDs
-    local h2 = InitHashtable()
-
     FakeBars = {
         debug = false
     }
@@ -45,13 +42,8 @@ do
     end
 
     local function timerFunctionEndCinematicSceneBars()
-        local playerId = LoadInteger(h2, GetHandleId(GetExpiredTimer()), 0)
-        if (GetLocalPlayer() == Player(playerId)) then
-            FakeBars:hide()
-            EndCinematicScene()
-        else
-            PauseTimer(playerUpdateCinematicSceneBarsTimer)
-        end
+        FakeBars:hide()
+        EndCinematicScene()
     end
 
     -- Does not divide by 100.
@@ -181,10 +173,7 @@ do
     end
 
     local function timerFunctionUpdateCinematicSceneBars()
-        local playerId = LoadInteger(h2, GetHandleId(GetExpiredTimer()), 0)
-        if (GetLocalPlayer() == Player(playerId)) then
-            updateCinematicScene()
-        end
+        updateCinematicScene()
     end
 
     local originalFrameHpWidth
@@ -221,17 +210,13 @@ do
         printDebug('FakeBars:show')
         scaleBars()
 
-        local playerId = GetPlayerId(GetLocalPlayer())
-
         BlzFrameSetVisible(playerHPFrame, true)
         BlzFrameSetVisible(playerManaFrame, true)
         updateCinematicScene()
 
         PauseTimer(playerAnimationTimer)
-        SaveInteger(h2, GetHandleId(playerAnimationTimer), 0, playerId)
         TimerStart(playerAnimationTimer, GetSoundDurationBJ(whichSound), false, timerFunctionEndCinematicSceneBars)
-        SaveInteger(h2, GetHandleId(playerUpdateCinematicSceneBarsTimer), 0, playerId)
-        TimerStart(playerUpdateCinematicSceneBarsTimer, UPDATE_INTERVAL, true, timerFunctionUpdateCinematicSceneBars)
+        TimerStart(playerUpdateCinematicSceneBarsTimer, UPDATE_INTERVAL, true, updateCinematicScene)
     end
 
     local function timerFunctionCreatePlayerPortraits()
