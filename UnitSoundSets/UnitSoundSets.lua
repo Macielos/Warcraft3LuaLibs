@@ -233,7 +233,7 @@ do
             return false
         end
         for i, condition in ipairs(customConditions) do
-            if condition() == false then
+            if condition(unit) == false then
                 return false
             end
         end
