@@ -13,7 +13,7 @@ ScreenplayFactory:saveBuilderForMessageChain("orc", function()
             actor = actorGrunt,
             anim = "stand two",
             sound = sounds.grunt01,
-            delayNextItem = 3.0,
+            delayNextItem = 4.0,
         },
         [3] = {
             actor = actorFootman,

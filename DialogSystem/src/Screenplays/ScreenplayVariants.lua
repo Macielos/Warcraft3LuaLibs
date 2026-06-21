@@ -37,6 +37,7 @@ do
             rewindable = true,
             interruptExisting = true,
             frame = FRAME_CLICKABLE,
+            hideLingeringMessagesAfter = 3.0,
         },
         --[[
             A modification of above that also pauses all units. Typically I use 'inCutsceneAutoplayPause' for mid-game
@@ -66,6 +67,7 @@ do
             interruptExisting = true,
             enqueueIfExisting = false,
             frame = FRAME_CLICKABLE,
+            hideLingeringMessagesAfter = 3.0,
         },
         --[[
             A modification of above that requires pressing right arrow to move to the next line.
@@ -93,6 +95,7 @@ do
             interruptExisting = true,
             enqueueIfExisting = false,
             frame = FRAME_CLICKABLE,
+            hideLingeringMessagesAfter = 3.0,
         },
         --[[
             A small dialog window that pauses the game and keeps the camera pointing at a currently speaking actor. Good for

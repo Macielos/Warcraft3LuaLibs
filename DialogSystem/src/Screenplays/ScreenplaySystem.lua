@@ -102,10 +102,19 @@ do
             end
         end
 
-        --- @param bool boolean  true to animate out (hide), false to animate in (show).
-        local function fadeOutFrame(bool)
-            FrameUtils.fadeFrame(bool, ScreenplaySystem.frame.backdrop, ScreenplaySystem.fadeDuration)
+        --- @param fadeOut boolean  true to animate out (hide), false to animate in (show).
+        local function fadeFrame(fadeOut)
+            FrameUtils.fadeFrame(fadeOut, ScreenplaySystem.frame.backdrop, ScreenplaySystem.fadeDuration)
         end
+
+        local function showHideFrame(show)
+            if ScreenplaySystem.fade then
+                fadeFrame(not show)
+            else
+                BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, show)
+            end
+        end
+
 
         local function createFrames(backdrop, title, text)
             local frame = {}
@@ -306,11 +315,7 @@ do
             end
 
             if self.currentChain[1] and self.currentChain[1].fadeInDuration == 0 and self.currentChain[1].delayText == 0 then
-                if self.fade then
-                    fadeOutFrame(false)
-                else
-                    BlzFrameSetVisible(self.frame.backdrop, true)
-                end
+                showHideFrame(true)
             end
 
             if self.currentVariantConfig.setVolumeChannelForSpeech == true then
@@ -416,11 +421,7 @@ do
                 BlzEnableSelections(true, true)
                 EnablePreSelect(true, true)
             end
-            if self.fade then
-                fadeOutFrame(true)
-            else
-                BlzFrameSetVisible(self.frame.backdrop, false)
-            end
+            showHideFrame(false)
             if self.currentVariantConfig.pauseAll then
                 printDebug("unpausing all")
                 PauseAllUnitsBJ(false)
@@ -625,7 +626,10 @@ do
             -- initialize timer settings:
             clearMessageUncovererTimer()
 
-            BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, true)
+            if not BlzFrameIsVisible(ScreenplaySystem.frame.backdrop) then
+                showHideFrame(true)
+            end
+
             BlzFrameSetText(ScreenplaySystem.frame.title, ScreenplaySystem.TITLE_COLOR_HEX .. self.actor.name .. "|r")
             if self.choices then
                 self:playChoices()
@@ -646,12 +650,6 @@ do
             end
             if self.sound then
                 SimpleUtils.playSound(self.sound)
-            end
-
-            BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, true)
-            if ScreenplaySystem.fade and ScreenplaySystem.prevActor ~= self.actor then
-                FrameUtils.fadeFrame(false, ScreenplaySystem.frame.title, ScreenplaySystem.fadeDuration)
-                FrameUtils.fadeFrame(false, ScreenplaySystem.frame.text, ScreenplaySystem.fadeDuration)
             end
 
             if ScreenplaySystem.currentVariantConfig.unitPan then
@@ -678,7 +676,7 @@ do
 
             -- render string characters:
             local nextItemDelay = self:getDuration()
-            local hidePortraitDelay = self:getBaseDuration() + 3.0
+            local baseDuration = self:getBaseDuration()
 
             if ScreenplaySystem.currentVariantConfig.cinematicMode then
                 sendTransmission(self.actor, self.text)
@@ -716,12 +714,15 @@ do
                         ScreenplaySystem.currentChain:playNext()
                     end
                 end)
-                if hidePortraitDelay < nextItemDelay then
-                    ScreenplaySystem.hidePortraitTimer = SimpleUtils.timed(hidePortraitDelay, function()
-                        ScreenplaySystem.hidePortraitTimer = nil
-                        printDebug("Hiding portrait after " .. tostring(hidePortraitDelay))
-                        clear()
-                    end)
+                if ScreenplaySystem.currentVariantConfig.hideLingeringMessagesAfter ~= nil then
+                    local hidePortraitDelay = baseDuration + ScreenplaySystem.currentVariantConfig.hideLingeringMessagesAfter
+                    if nextItemDelay > hidePortraitDelay then
+                        ScreenplaySystem.hidePortraitTimer = SimpleUtils.timed(hidePortraitDelay, function()
+                            ScreenplaySystem.hidePortraitTimer = nil
+                            printDebug("Hiding portrait after " .. tostring(hidePortraitDelay))
+                            clear()
+                        end)
+                    end
                 end
             end
         end
