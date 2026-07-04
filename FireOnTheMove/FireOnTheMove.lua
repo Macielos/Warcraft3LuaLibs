@@ -129,6 +129,7 @@ do
         GroupClear(trackedUnitState.targetGroup)
         trackedUnitState.targetQueue = {}
         trackedUnitState.currentTarget = nil
+        ResetUnitLookAt(unit)
     end
 
     local function fire(sourceUnit, targetUnit, unitTypeInfo)
@@ -230,6 +231,8 @@ do
         end
         local unitTypeInfo = FireOnTheMove.unitTypes[GetUnitTypeId(unitToTrack)]
         if BlzGetUnitWeaponBooleanField(unitToTrack, UNIT_WEAPON_BF_ATTACKS_ENABLED, unitTypeInfo.attackIndex) ~= true then
+            ResetUnitLookAt(unitToTrack)
+            PauseTimer(unitState.fireTimer)
             return
         end
 
@@ -240,7 +243,7 @@ do
             findAndAcquireNextTarget(unitState, unitToTrack)
         end
         target = unitState.currentTarget
-        if target ~= nil then
+        if isAliveAndInRangeAndValid(unitToTrack, target, range) then
             fire(unitToTrack, target, FireOnTheMove.unitTypes[typeId])
         else
             printDebug("no target in range to continue fire on the move")
@@ -276,7 +279,7 @@ do
             findAndAcquireNextTarget(trackedUnitState, unit)
         else
             addTarget(trackedUnitState, target)
-            if target == trackedUnitState.lastAttackTarget then
+            if target == trackedUnitState.lastAttackTarget and isAliveAndInRangeAndValid(unit, target, getRange(unit)) then
                 acquireTarget(trackedUnitState, unit, target)
             end
         end

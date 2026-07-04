@@ -108,4 +108,38 @@ function FrameUtils.fixFocus(fh)
     BlzFrameSetEnable(fh, true)
 end
 
+function FrameUtils.displayImage(image, centerX, centerY, width, height)
+    -- 1. Create a container frame that handles the positioning
+    local container = BlzCreateFrameByType("FRAME", "TitleContainer", BlzGetOriginFrame(ORIGIN_FRAME_WORLD_FRAME, 0), "", 0)
+    -- 2. Center the container on the screen
+    BlzFrameSetAbsPoint(container, FRAMEPOINT_CENTER, centerX, centerY)
+
+    -- 3. Set a strict square size (0.2 width by 0.2 height)
+    -- Increase or decrease both numbers equally to change the size (e.g., 0.3, 0.3)
+    BlzFrameSetSize(container, width, height)
+
+    -- 4. Create the actual image texture frame inside the container
+    local titleImage = BlzCreateFrameByType("BACKDROP", "TitleImage", container, "", 0)
+
+    -- 5. Pin the texture perfectly to all four edges of our square container
+    BlzFrameSetAllPoints(titleImage, container)
+
+    -- 6. Apply your imported BLP texture
+    BlzFrameSetTexture(titleImage, image, 0, true)
+
+    FrameUtils.fadeFrame(false, container, 2.0)
+
+    SimpleUtils.timed(8.0, function()
+        FrameUtils.fadeFrame(true, container, 2.0)
+    end)
+end
+
+function FrameUtils.displayImageCentered(image, width, height)
+    FrameUtils.displayImage(image, 0.4, 0.3, width, height)
+end
+
+function FrameUtils.displayImageCutsceneCentered(image, width, height)
+    FrameUtils.displayImage(image, 0.4, 0.35, width, height)
+end
+
 if Debug then Debug.endFile() end

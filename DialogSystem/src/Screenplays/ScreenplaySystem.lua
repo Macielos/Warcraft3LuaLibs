@@ -150,7 +150,6 @@ do
             sendDummyTransmission()
         end
 
-        --- when a new chain is being played, initialize the default display.
         local function clear()
             if ScreenplaySystem.frame then
                 BlzFrameSetVisible(ScreenplaySystem.frame.backdrop, false)
@@ -274,7 +273,6 @@ do
             self.currentIndex = 0     -- the item currently being played from an item queue.
             self.cameraTargetX = 0     -- X coord to pan camera to.
             self.cameraTargetY = 0     -- Y coord to pan camera to.
-            self.paused = false
             self.initialized = false
             self.sceneCamera = gg_cam_sceneCam
             self.trackingCameraTimer = CreateTimer()
@@ -283,6 +281,15 @@ do
         --- initialize classes and class specifics, always called at map init
         function ScreenplaySystem:initFinal()
             SimpleUtils.timed(0.0, loadAndInitFrames)
+        end
+
+        local function areAllActorsDead(chain)
+            for i, item in ipairs(chain) do
+                if item.actor.unit == nil or IsUnitAliveBJ(item.actor.unit) then
+                    return false
+                end
+            end
+            return true
         end
 
         startSceneFunction = function(chain, variant, onSceneEndTrigger, interruptExisting)
@@ -298,6 +305,17 @@ do
                 end
             end
 
+            if areAllActorsDead(chain) then
+                printDebug("All actors are dead, entire scene will be skipped, not initializing")
+                if onSceneEndTrigger then
+                    ConditionalTriggerExecute(onSceneEndTrigger)
+                end
+                if ScreenplaySystem.sceneQueue[1] ~= nil then
+                    SimpleUtils.timed(1.0, runEnqueuedScene)
+                end
+                return
+            end
+
             printDebug("Starting scene...")
             ClearTextMessages()
 
@@ -306,7 +324,6 @@ do
             assert(self.currentVariantConfig, "invalid frame variant: " .. variant)
             self.currentIndex = 0
             self.currentChain = SimpleUtils.deepCopy(chain)
-            self.paused = false
             if not self.initialized then
                 initScene()
             end
@@ -443,10 +460,9 @@ do
             self.currentVariantConfig = nil
             self.initialized = false
             self.frame = nil
-            -- clear cache:
-            if not self.paused then
-                SimpleUtils.destroyTable(self.currentChain)
-            end
+
+            SimpleUtils.destroyTable(self.currentChain)
+
             if self.onSceneEndTrigger then
                 ConditionalTriggerExecute(self.onSceneEndTrigger)
             end
