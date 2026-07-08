@@ -743,7 +743,7 @@ globals
     boolean two_heroes              = false
     boolean allow_air_creeps        = false
     boolean take_exp                = false
-    boolean allow_signal_abort      = true
+    boolean allow_signal_abort      = false
     boolean ready_for_zeppelin      = true
     boolean get_zeppelin            = false
 
@@ -1016,7 +1016,7 @@ function WaitForSignal takes nothing returns integer
         exitwhen CommandsWaiting() != 0
 
         //xxx
-        call Trace("waiting for a signal to begin AI script...\n")
+        //call Trace("waiting for a signal to begin AI script...\n")
         set display = true
         call Sleep(2)
         exitwhen CommandsWaiting() != 0
@@ -2000,12 +2000,18 @@ function SendCaptainHomeAndWait takes nothing returns nothing
         exitwhen CaptainIsEmpty()
         call Sleep(2)
     endloop
-    call PrintLn("Captain is home")
+    call PrintLn("Captain is home or dead")
 endfunction
 
 //============================================================================
 function AttackMoveXYPressOnUntilCommand takes integer x, integer y returns nothing
     call PrintLn("AttackMoveXYPressOnUntilCommand")
+
+    loop
+        exitwhen not TownThreatened()
+        call Sleep(2)
+    endloop
+
     call FormGroup(3, true)
     if zep_next_wave then
         call LoadZepWave(x,y)
@@ -2014,8 +2020,29 @@ function AttackMoveXYPressOnUntilCommand takes integer x, integer y returns noth
 
     loop
         call AttackMoveXY(x,y)
+        exitwhen CommandsWaiting() != 0
+        call SuicideSleep(4)
+    endloop
+    call PrintLn("AttackMoveXYPressOnUntilCommand DONE")
+endfunction
 
-        exitwhen TownThreatened()
+function AttackMoveXYWithTargetChangePressOnUntilCommand takes integer x, integer y returns nothing
+    call PrintLn("AttackMoveXYPressOnUntilCommand")
+
+    if CaptainIsEmpty() or CaptainIsHome() then
+        loop
+            exitwhen not TownThreatened()
+            call Sleep(2)
+        endloop
+        call FormGroup(3, true)
+        if zep_next_wave then
+            call LoadZepWave(x,y)
+            set zep_next_wave = false
+        endif
+    endif
+
+    loop
+        call AttackMoveXY(x,y)
         exitwhen CommandsWaiting() != 0
         call SuicideSleep(4)
     endloop
