@@ -89,6 +89,7 @@ function SimpleUtils.timedPeriodic(interval, shouldContinueFunc)
             SimpleUtils.releaseTimer(timer)
         end
     end)
+    return timer
 end
 
 -- :: clones a table and any child tables (setting metatables)
