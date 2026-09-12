@@ -60,7 +60,7 @@ do
         if IsUnitInvisible(target, owner) then
             return false
         end
-        if unitTypeInfo.targetGround == true and IsUnitType(target, UNIT_TYPE_GROUND) then
+        if unitTypeInfo.targetGround == true and (IsUnitType(target, UNIT_TYPE_GROUND) or IsUnitStructure(target)) then
             return true
         end
         if unitTypeInfo.targetAir == true and IsUnitType(target, UNIT_TYPE_FLYING) then
