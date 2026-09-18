@@ -144,6 +144,7 @@ do
         local mainSelected = SelectionTracker:getMainForLocalPlayer()
         --printDebug("Main selected " .. GetUnitName(mainSelected))
         return mainSelected ~= nil and mainSelected == whichUnit
+        --return true
     end
 
     function UnitSoundSets:removeAllUnitSoundSets()
@@ -382,6 +383,9 @@ do
     end
 
     local function playRandomSoundForForce(whichForce, whichUnit, soundType)
+        if not IsPlayerInForce(GetLocalPlayer(), whichForce) then
+            return
+        end
         local slotPlayer
         for i = 0, bj_MAX_PLAYERS - 1 do
             slotPlayer = Player(i)
@@ -610,5 +614,11 @@ do
     end
 
     OnInit.trig(initUnitSoundSets)
+
+    OnInit.final(function()
+        SetRandomSeed(21372137)
+        --apparently this makes the timer synced so it doesn't desync in multi
+        TimerStart(playerSoundTimer, 0.0, false, function() end)
+    end)
 end
 if Debug then Debug.endFile() end

@@ -1,8 +1,8 @@
 if Debug then Debug.beginFile "SelectionTracker" end
 do
     local loadBugTrigger = CreateTrigger()
-    local containerFrame = nil -- framehandle
-    local frames = {} -- framehandle array
+    local containerFrame = nil
+    local groupFrame = nil
     local group = CreateGroup()
     local units = {} -- unit array
     local unitsCount = 0
@@ -63,20 +63,27 @@ do
 
     local function getSelectedUnitIndex()
         -- local player is in group selection?
-        if BlzFrameIsVisible(containerFrame) then
-            -- find the first visible yellow Background Frame
-            for i = 0, 11 do
-                if BlzFrameIsVisible(frames[i]) then
-                    printDebug("GetSelectedUnitIndex: " .. tostring(i))
-                    return i
-                end
+        if not BlzFrameIsVisible(containerFrame) then
+            return -1
+        end
+
+        local groupSubFrame = FrameUtils.safeFrameGetChild(groupFrame, 0)
+        local selectedUnitFrameCount = BlzFrameGetChildrenCount(groupSubFrame)
+        local selectedUnitFrame
+        local selectedUnitHighlightFrame
+        for i = 0, selectedUnitFrameCount - 1 do
+            selectedUnitFrame = FrameUtils.safeFrameGetChild(groupSubFrame, i)
+            selectedUnitHighlightFrame = FrameUtils.safeFrameGetChild(selectedUnitFrame, 0)
+            if BlzFrameIsVisible(selectedUnitHighlightFrame) then
+                printDebug("GetSelectedUnitIndex: " .. tostring(i))
+                return i
             end
         end
-        --printDebug("GetSelectedUnitIndex: container not visible")
+
         return -1
     end
 
-    local function getMainSelectedUnit(whichPlayer, index)
+    local function getSelectedUnitByIndex(whichPlayer, index)
         printDebug("GetMainSelectedUnit: " .. tostring(index))
         GroupClear(group)
         if index >= 0 then
@@ -93,30 +100,19 @@ do
 
     --the local current main selected unit, using it in a sync gamestate relevant manner breaks the game.
     function SelectionTracker:getMainForLocalPlayer()
-        return getMainSelectedUnit(GetLocalPlayer(), getSelectedUnitIndex())
+        return getSelectedUnitByIndex(GetLocalPlayer(), getSelectedUnitIndex())
     end
 
     local function initFrames()
-        local console = BlzGetFrameByName("ConsoleUI", 0)
-        local bottomUI = FrameUtils.safeFrameGetChild(console, 1)
+        console = BlzGetFrameByName("ConsoleUI", 0)
+        bottomUI = FrameUtils.safeFrameGetChild(console, 1)
         containerFrame = FrameUtils.safeFrameGetChild(bottomUI, 2)
-        local groupFrame = FrameUtils.safeFrameGetChild(containerFrame, 5)
-        local groupSubFrame = FrameUtils.safeFrameGetChild(groupFrame, 0)
-
-        local buttonContainer
-
-        group = CreateGroup()
-        -- give this frames a handleId
-        for i = 0, BlzFrameGetChildrenCount(groupSubFrame) - 1 do
-            buttonContainer = FrameUtils.safeFrameGetChild(groupSubFrame, i)
-            frames[i] = FrameUtils.safeFrameGetChild(buttonContainer, 0)
-        end
-        DestroyTimer(GetExpiredTimer())
+        groupFrame = FrameUtils.safeFrameGetChild(containerFrame, 5)
     end
 
     local function initSelectionTracker()
         selectedUnitsOrderedFilter = Filter(selectionTrackerFilterFunction)
-        TimerStart(CreateTimer(), 0, false, initFrames)
+        SimpleUtils.timed(0, initFrames)
         TriggerRegisterGameEvent(loadBugTrigger, EVENT_GAME_LOADED)
         TriggerAddAction(loadBugTrigger, initFrames)
     end
