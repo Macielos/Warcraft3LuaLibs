@@ -145,6 +145,12 @@ ScreenplayFactory:saveBuilderForMessageChain("orc", function()
         [20] = {
             text = "Yeah, yeah, whatever.",
             actor = actorGrunt,
+            thenEndScene = true
         },
+        [21] = {
+            text = "|cffff0000Hey, orc! I just visited that elven asshole, so I'm pissed as hell!|r",
+            actor = actorFootman,
+            thenGoTo = 2
+        }
     }
 end)

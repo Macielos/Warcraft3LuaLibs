@@ -27,7 +27,7 @@ do
         TEXT_COLOR_HEX = "|cffffffff", -- character speech text color.
         INACTIVE_CHOICE_COLOR_HEX = "|cff808080", -- greyish text color for choices other than the selected one
 
-        debug = false, -- print debug messages for certain functions.
+        debug = false, -- print debug messages for certain functions. Also requires SimpleUtils.globalDebug = true
 
         --leftovers from original lib, could be moved to ScreenplayVariants, but so far I saw no need to customize them
         fade = true, -- should dialogue components have fading eye candy effects?
@@ -65,8 +65,8 @@ do
         fadeOutDuration = 0, -- duration of fade out to black after displaying this item, remember to add 'fadeInDuration' to the following item or fade in by script/trigger
         skipTimers = false, --if true, upon skipping this message timed actions added via SimpleUtils.skippable() will be cancelled. Set to true for messages that begin a new shot, with fade, new camera etc.
         stopOnRewind = false, --if true, rewinding a cutscene (ESC) will stop at this message,
-        panCameraTargetX = nil,
-        panCameraTargetY = nil
+        panCameraTargetX = nil, --for scenes with camera tracking the speaker, allows to override it with location x
+        panCameraTargetY = nil --for scenes with camera tracking the speaker, allows to override it with location y
     }
 
     ScreenplaySystem.itemAction = {
@@ -177,11 +177,12 @@ do
             BlzFrameSetText(ScreenplaySystem.frame.text, "")
         end
 
-        local function enqueueScene(name, variant, onSceneEndTrigger)
+        local function enqueueScene(name, variant, onSceneEndTrigger, initialIndex)
             table.insert(ScreenplaySystem.sceneQueue, {
                 name = name,
                 variant = variant,
-                onSceneEndTrigger = onSceneEndTrigger
+                onSceneEndTrigger = onSceneEndTrigger,
+                initialIndex = initialIndex
             })
             printDebug("Scene enqueued: " .. name)
         end
@@ -197,7 +198,7 @@ do
         local function runEnqueuedScene()
             if ScreenplaySystem.sceneQueue[1] ~= nil then
                 local scene = table.remove(ScreenplaySystem.sceneQueue, 1)
-                startSceneFunction(buildScreenplay(scene.name), scene.variant, scene.onSceneEndTrigger, false)
+                startSceneFunction(buildScreenplay(scene.name), scene.variant, scene.onSceneEndTrigger, false, scene.initialIndex)
             end
         end
 
@@ -292,7 +293,7 @@ do
             return true
         end
 
-        startSceneFunction = function(chain, variant, onSceneEndTrigger, interruptExisting)
+        startSceneFunction = function(chain, variant, onSceneEndTrigger, interruptExisting, initialIndex)
             local self = ScreenplaySystem
             if self:isActive() then
                 if interruptExisting == true or (interruptExisting == nil and ScreenplayVariants[variant].interruptExisting == true) then
@@ -316,14 +317,15 @@ do
                 return
             end
 
-            printDebug("Starting scene...")
             ClearTextMessages()
 
             self.currentVariantConfig = ScreenplayVariants[variant]
             self.onSceneEndTrigger = onSceneEndTrigger
             assert(self.currentVariantConfig, "invalid frame variant: " .. variant)
-            self.currentIndex = 0
             self.currentChain = SimpleUtils.deepCopy(chain)
+            self.currentIndex = 0
+            self.initialIndex = initialIndex or 1
+            printDebug("Starting scene at index " .. tostring(self.initialIndex))
             if not self.initialized then
                 initScene()
             end
@@ -331,7 +333,9 @@ do
                 refreshFrames()
             end
 
-            if self.currentChain[1] and self.currentChain[1].fadeInDuration == 0 and self.currentChain[1].delayText == 0 then
+            local nextItem = self.currentChain[initialIndex]
+            if nextItem and nextItem.fadeInDuration == 0 and nextItem.delayText == 0 then
+                printDebug("showHideFrame")
                 showHideFrame(true)
             end
 
@@ -352,14 +356,14 @@ do
         ---@param onSceneEndTrigger trigger
         ---@param interruptExisting boolean
         ---@param enqueueIfExisting boolean
-        function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting, enqueueIfExisting)
+        function ScreenplaySystem:startSceneByName(name, variant, onSceneEndTrigger, interruptExisting, enqueueIfExisting, initialIndex)
             if not self.frames --map initialization, frame not yet initialized
                     or (self:isActive() and (enqueueIfExisting == true or (enqueueIfExisting == nil and ScreenplayVariants[variant].enqueueIfExisting == true)))
             then
-                enqueueScene(name, variant, onSceneEndTrigger)
+                enqueueScene(name, variant, onSceneEndTrigger, initialIndex)
                 return
             end
-            startSceneFunction(buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting)
+            startSceneFunction(buildScreenplay(name), variant, onSceneEndTrigger, interruptExisting, initialIndex)
         end
 
         local function clearMessageUncovererTimer()
@@ -895,6 +899,9 @@ do
         end
 
         function ScreenplaySystem.chain:getNextIndexForIndex(index)
+            if index == 0 then
+                return ScreenplaySystem.initialIndex
+            end
             if self[index] then
                 if self[index].thenEndScene == true then
                     return -1
